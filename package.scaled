@@ -1,0 +1,13 @@
+name: scala-mode
+version: 1.0
+description: Provides language support for Scala.
+homepage: https://github.com/scaled/scala-mode
+repository: git:https://github.com/scaled/scala-mode.git
+license: New BSD
+source: src/main/scala
+classes: target/classes
+# depend: git:https://github.com/scaled/foo-service.git
+# depend: git:https://code.google.com/p/scaled-bar-service/
+# depend: hg:https://code.google.com/p/scaled-baz-service/
+# depend: svn:https://scaled-pants-service.googlecode.com/svn/trunk
+# depend: mvn:com.google.guava:guava:16.0.1:jar
