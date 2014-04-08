@@ -7,7 +7,7 @@ Documentation TBD.
 ## Distribution
 
 Scaled Scala Mode is released under the New BSD License. The most recent version of the code is
-available at http://github.com/samskivert/scaled-codex-mode
+available at http://github.com/scaled/scala-mode
 
-[Scaled]: https://github.com/samskivert/scaled
+[Scaled]: https://github.com/scaled/scaled
 [Scala]: http://www.scala-lang.org/
