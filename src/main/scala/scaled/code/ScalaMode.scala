@@ -13,7 +13,7 @@ object ScalaConfig extends ConfigDefs {
   import CodeConfig._
 
   // map TextMate grammar scopes to Scaled style definitions
-  val colorizers = Map(
+  val colorizers = List(
     effacer("comment.line", commentStyle),
     effacer("comment.block", docStyle),
     effacer("constant", constantStyle),
@@ -37,13 +37,15 @@ object ScalaConfig extends ConfigDefs {
     effacer("variable.other.type", variableStyle)
   )
 
+  /** A predicate we use to strip `code` styles from a line before restyling it. */
+  private val codeP = (style :String) => style startsWith "code"
+
   /** Compiles `selector` into a TextMate grammar selector and pairs it with a function that applies
     * `cssClass` to buffer spans matched by the selector. */
   def effacer (selector :String, cssClass :String) =
-    // TODO: first remove all code faces, then add the desired faces?
     (Selector.parse(selector), (buf :Buffer, span :Span) => {
       // println(s"Applying $cssClass to $span")
-      buf.addStyle(cssClass, span)
+      buf.updateStyles(_ - codeP + cssClass, span)
     })
 }
 
