@@ -10,7 +10,7 @@ object Grammars {
 
   // def htmlGrammar = Grammar.parse(stream("HTML.tmLanguage"))
   def scalaGrammar = Grammar.parse(stream("Scala.tmLanguage"))
-  lazy val grammars = Seq(scalaGrammar)
+  lazy val scalaGrammars = Seq(scalaGrammar)
 
   private def stream (path :String) = getClass.getClassLoader.getResourceAsStream(path)
 }
