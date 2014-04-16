@@ -38,8 +38,7 @@ object ScalaConfig extends Config.Defs {
     effacer("variable.other.type", variableStyle)
   )
 
-  lazy val scalaGrammars = Seq(Grammar.parse(stream("Scala.tmLanguage")))
-  private def stream (path :String) = getClass.getClassLoader.getResourceAsStream(path)
+  lazy val grammars = Seq(Grammar.parse(stream("Scala.tmLanguage")))
 }
 
 @Major(name="scala",
@@ -50,7 +49,7 @@ object ScalaConfig extends Config.Defs {
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   override def configDefs = ScalaConfig :: super.configDefs
-  override protected def grammars = ScalaConfig.scalaGrammars
+  override protected def grammars = ScalaConfig.grammars
   override protected def effacers = ScalaConfig.effacers
 
   // TODO: more things!
