@@ -2,7 +2,7 @@
 // Scaled Scala Mode - a Scaled major mode for editing Scala code
 // http://github.com/scaled/scala-mode/blob/master/LICENSE
 
-package scaled.code
+package scaled.scala
 
 import scaled._
 import scaled.grammar._
@@ -37,6 +37,9 @@ object ScalaConfig extends Config.Defs {
     // effacer("variable.parameter", variableStyle), // leave params white
     effacer("variable.other.type", variableStyle)
   )
+
+  lazy val scalaGrammars = Seq(Grammar.parse(stream("Scala.tmLanguage")))
+  private def stream (path :String) = getClass.getClassLoader.getResourceAsStream(path)
 }
 
 @Major(name="scala",
@@ -47,7 +50,7 @@ object ScalaConfig extends Config.Defs {
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   override def configDefs = ScalaConfig :: super.configDefs
-  override protected def grammars = Grammars.scalaGrammars
+  override protected def grammars = ScalaConfig.scalaGrammars
   override protected def effacers = ScalaConfig.effacers
 
   // TODO: more things!
