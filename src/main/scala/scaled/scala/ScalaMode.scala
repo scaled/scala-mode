@@ -47,6 +47,7 @@ object ScalaConfig extends Config.Defs {
        ints=Array("scala"),
        desc="A major editing mode for the Scala language.")
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
+  import CodeConfig._
 
   override def configDefs = ScalaConfig :: super.configDefs
   override protected def grammars = ScalaConfig.grammars
