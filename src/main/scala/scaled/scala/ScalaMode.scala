@@ -5,8 +5,9 @@
 package scaled.scala
 
 import scaled._
-import scaled.grammar._
+import scaled.grammar.{Grammar, GrammarCodeConfig, GrammarCodeMode}
 import scaled.major.CodeConfig
+import scaled.util.Indenter
 
 object ScalaConfig extends Config.Defs {
   import EditorConfig._
@@ -47,11 +48,22 @@ object ScalaConfig extends Config.Defs {
        ints=Array("scala"),
        desc="A major editing mode for the Scala language.")
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
-  import CodeConfig._
 
   override def configDefs = ScalaConfig :: super.configDefs
   override protected def grammars = ScalaConfig.grammars
   override protected def effacers = ScalaConfig.effacers
+
+  override protected def createIndenters () = List(
+    new Indenter.PairAnchorAlign(config, buffer, "yield", "for"),
+    new Indenter.PairAnchorAlign(config, buffer, "with", "extends"),
+    new Indenter.TryCatchAlign(config, buffer),
+    new Indenter.TryFinallyAlign(config, buffer),
+    new Indenter.IfElseIfElseAlign(config, buffer),
+    new ScalaIndenter.ValueExprBody(config, buffer),
+    new ScalaIndenter.CaseBody(config, buffer),
+    new Indenter.OneLinerWithArgs(config, buffer, Set("if", "while", "for")),
+    new Indenter.OneLinerNoArgs(config, buffer, Set("else", "do", "try", "finally"))
+  ) ++ super.createIndenters()
 
   // TODO: more things!
 }
