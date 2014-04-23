@@ -54,15 +54,26 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override protected def effacers = ScalaConfig.effacers
 
   override protected def createIndenters () = List(
-    new Indenter.PairAnchorAlign(config, buffer, "yield", "for"),
-    new Indenter.PairAnchorAlign(config, buffer, "with", "extends"),
+    new Indenter.PairAnchorAlign(config, buffer) {
+      protected val anchorM = Matcher.regexp("\\bfor\\b")
+      protected val secondM = Matcher.regexp("yield\\b")
+    },
+    new Indenter.PairAnchorAlign(config, buffer) {
+      protected val anchorM = Matcher.regexp("\\bextends\\b")
+      protected val secondM = Matcher.regexp("with\\b")
+    },
     new Indenter.TryCatchAlign(config, buffer),
     new Indenter.TryFinallyAlign(config, buffer),
     new Indenter.IfElseIfElseAlign(config, buffer),
     new ScalaIndenter.ValueExprBody(config, buffer),
+    new ScalaIndenter.Extends(config, buffer),
     new ScalaIndenter.CaseBody(config, buffer),
+    new ScalaIndenter.Scaladoc(config, buffer),
     new Indenter.OneLinerWithArgs(config, buffer, Set("if", "while", "for")),
-    new Indenter.OneLinerNoArgs(config, buffer, Set("else", "do", "try", "finally"))
+    new Indenter.OneLinerNoArgs(config, buffer, Set("else", "do", "try", "finally")),
+    new Indenter.ByBlock(config, buffer) {
+      override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(buffer, pos)
+    }
   ) ++ super.createIndenters()
 
   // TODO: more things!
