@@ -92,10 +92,19 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
          * before indenting. TODO: other smarts.""")
   def electricNewline () {
     val p = view.point()
+    val line = buffer.line(p)
+
+    // shenanigans to determine whether we should auto-insert scaladoc *
+    // TODO: maybe we should just use a textmate grammar selector...
     val onDoc = buffer.stylesAt(p) contains docStyle
-    val afterDoc = (p.col > 0) && (buffer.stylesAt(p.prevC) contains docStyle)
-    val afterCloseDoc = buffer.line(p).lastIndexOf(closeDocM, p.col) != -1
-    val inDoc = onDoc || (afterDoc && !afterCloseDoc)
+    // we can't use matches here because the Scala grammar seems to mark all whitespace
+    // leading up to the open doc in comment style... meh
+    val onOpenDoc = onDoc && (line.indexOf(openDocM, p.col) != -1)
+    val afterDoc = (p.col == line.length && p.col > 1) && (
+      buffer.stylesAt(p.prevC) contains docStyle)
+    val afterCloseDoc = afterDoc && line.lastIndexOf(closeDocM, p.col) != -1
+    val inDoc = (onDoc && !onOpenDoc) || (afterDoc && !afterCloseDoc)
+
     newline()
     if (inDoc) {
       buffer.insert(view.point(), "* ", Styles.None)
@@ -103,6 +112,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
     reindentAtPoint()
   }
+  private val openDocM = Matcher.exact("/**")
   private val closeDocM = Matcher.exact("*/")
 
   // TODO: more things!
