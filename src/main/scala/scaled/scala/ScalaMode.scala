@@ -5,14 +5,14 @@
 package scaled.scala
 
 import scaled._
-import scaled.grammar.{Grammar, GrammarCodeConfig, GrammarCodeMode}
+import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
 import scaled.major.CodeConfig
 import scaled.util.{Chars, Indenter}
 
 object ScalaConfig extends Config.Defs {
   import EditorConfig._
   import CodeConfig._
-  import GrammarCodeConfig._
+  import GrammarConfig._
 
   // map TextMate grammar scopes to Scaled style definitions
   val effacers = List(
@@ -57,6 +57,8 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     "ENTER"   -> "electric-newline",
     "S-ENTER" -> "electric-newline"
   )
+
+  override def dispose () {} // nada for now
 
   override protected def grammars = ScalaConfig.grammars
   override protected def effacers = ScalaConfig.effacers
