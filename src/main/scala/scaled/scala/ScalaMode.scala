@@ -58,8 +58,6 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     "S-ENTER" -> "electric-newline"
   )
 
-  override def dispose () {} // nada for now
-
   override protected def grammars = ScalaConfig.grammars
   override protected def effacers = ScalaConfig.effacers
 
