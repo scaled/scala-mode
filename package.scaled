@@ -6,4 +6,4 @@ descrip: Provides language support for Scala.
 license: New BSD
  srcdir: src/main/scala
  bindir: target/classes
- depend: ivy:com.samskivert.scaled:textmate-grammar:1.0-SNAPSHOT:jar
+ depend: mvn:com.samskivert.scaled:textmate-grammar:1.0-SNAPSHOT:jar
