@@ -58,10 +58,13 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     "S-ENTER" -> "electric-newline"
   )
 
-  override protected def grammars = ScalaConfig.grammars
-  override protected def effacers = ScalaConfig.effacers
+  override def grammars = ScalaConfig.grammars
+  override def effacers = ScalaConfig.effacers
 
-  override protected def createIndenters () = List(
+  override def commentPrefix :Option[String] = Some("// ")
+  override def docPrefix :Option[String] = Some("* ")
+
+  override def createIndenters () = List(
     new Indenter.PairAnchorAlign(config, buffer) {
       protected val anchorM = Matcher.regexp("\\bfor\\b")
       protected val secondM = Matcher.regexp("yield\\b")
