@@ -97,21 +97,21 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     val p = view.point()
     val line = buffer.line(p)
 
-    // shenanigans to determine whether we should auto-insert scaladoc *
-    // TODO: maybe we should just use a textmate grammar selector...
-    val onDoc = buffer.stylesAt(p) contains docStyle
-    // we can't use matches here because the Scala grammar seems to mark all whitespace
-    // leading up to the open doc in comment style... meh
-    val onOpenDoc = onDoc && (line.indexOf(openDocM, p.col) != -1)
-    val afterDoc = (p.col == line.length && p.col > 1) && (
-      buffer.stylesAt(p.prevC) contains docStyle)
-    val afterCloseDoc = afterDoc && line.lastIndexOf(closeDocM, p.col) != -1
-    val inDoc = (onDoc && !onOpenDoc) || (afterDoc && !afterCloseDoc)
+    // shenanigans to determine whether we should auto-insert the doc prefix (* )
+    val inDoc = (
+      // we need to be on doc-styled text...
+      (stylesNear(p) contains docStyle) &&
+      // and not on (or before) the open doc (/**)
+      // (the grammar marks all whitespace leading up to the open doc in comment style, meh)
+      (line.indexOf(openDocM, p.col) == -1) &&
+      // and not on or after the close doc (*/)
+      (line.lastIndexOf(closeDocM, p.col) == -1)
+    )
 
     newline()
     if (inDoc) {
-      buffer.insert(view.point(), "* ", Styles.None)
-      view.point() = view.point() + (0, 2)
+      buffer.insert(view.point(), docPrefix.get, Styles.None)
+      view.point() = view.point() + (0, docPrefix.get.length)
     }
     reindentAtPoint()
   }
