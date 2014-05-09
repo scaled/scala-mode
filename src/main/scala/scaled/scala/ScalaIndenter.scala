@@ -85,6 +85,7 @@ object ScalaIndenter {
   /** Aligns subsequent and final lines in Scaladoc comments on the second `*`. */
   class Scaladoc (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
     private val starM = Matcher.exact("*")
+    private val openM = Matcher.exact("/*")
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] =
       if (!buffer.stylesAt(pos).contains(CodeConfig.docStyle) || !startsWith(line, starM)) None
@@ -93,7 +94,7 @@ object ScalaIndenter {
         // slightly weirded to ensure that we don't go past the start of the buffer even if the
         // situation lacks sanity
         var row = math.max(pos.row-1, 0)
-        while (row > 0 && startsWith(buffer.line(row), starM)) row -= 1
+        while (row > 0 && !startsWith(buffer.line(row), openM)) row -= 1
         debug(s"Aligning scaladoc * with comment start on row $row.")
         Some(readIndent(buffer.line(row)) + 2)
       }
