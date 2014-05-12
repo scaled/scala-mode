@@ -85,8 +85,8 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   )
 
   class ScalaCommenter (buffer :Buffer) extends Commenter(buffer) {
-    override def commentPrefix = "// "
-    override def docPrefix = "* "
+    override def commentPrefix = "//"
+    override def docPrefix = "*"
 
     def inDoc (p :Loc) :Boolean = {
       val line = buffer.line(p)
