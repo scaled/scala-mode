@@ -7,7 +7,7 @@ package scaled.scala
 import scaled._
 import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
 import scaled.major.CodeConfig
-import scaled.util.{Chars, Indenter}
+import scaled.util.{Chars, Commenter, Indenter}
 
 object ScalaConfig extends Config.Defs {
   import EditorConfig._
@@ -61,10 +61,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override def grammars = ScalaConfig.grammars
   override def effacers = ScalaConfig.effacers
 
-  override def commentPrefix :Option[String] = Some("// ")
-  override def docPrefix :Option[String] = Some("* ")
-
-  override def createIndenters () = List(
+  override val indenters = List(
     new Indenter.PairAnchorAlign(config, buffer) {
       protected val anchorM = Matcher.regexp("\\bfor\\b")
       protected val secondM = Matcher.regexp("yield\\b")
@@ -85,7 +82,29 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     new Indenter.ByBlock(config, buffer) {
       override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(buffer, pos)
     }
-  ) ++ super.createIndenters()
+  )
+
+  class ScalaCommenter (buffer :Buffer) extends Commenter(buffer) {
+    override def commentPrefix = "// "
+    override def docPrefix = "* "
+
+    def inDoc (p :Loc) :Boolean = {
+      val line = buffer.line(p)
+      // we need to be on doc-styled text...
+      ((buffer.stylesNear(p) contains docStyle) &&
+       // and not on (or before) the open doc (/**)
+       // (the grammar marks all whitespace leading up to the open doc in comment style, meh)
+       (line.indexOf(openDocM, p.col) == -1) &&
+       // and not on or after the close doc (*/)
+       (line.lastIndexOf(closeDocM, p.col) == -1))
+    }
+
+    def insertDocPre (p :Loc) :Loc = {
+      buffer.insert(p, docPrefix, Styles.None)
+      p + (0, docPrefix.length)
+    }
+  }
+  override val commenter :ScalaCommenter = new ScalaCommenter(buffer)
 
   //
   // FNs
@@ -94,25 +113,10 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
          If newline is inserted in the middle of a Scaladoc comment, the next line is prepended with
          * before indenting. TODO: other smarts.""")
   def electricNewline () {
-    val p = view.point()
-    val line = buffer.line(p)
-
     // shenanigans to determine whether we should auto-insert the doc prefix (* )
-    val inDoc = (
-      // we need to be on doc-styled text...
-      (stylesNear(p) contains docStyle) &&
-      // and not on (or before) the open doc (/**)
-      // (the grammar marks all whitespace leading up to the open doc in comment style, meh)
-      (line.indexOf(openDocM, p.col) == -1) &&
-      // and not on or after the close doc (*/)
-      (line.lastIndexOf(closeDocM, p.col) == -1)
-    )
-
+    val inDoc = commenter.inDoc(view.point())
     newline()
-    if (inDoc) {
-      buffer.insert(view.point(), docPrefix.get, Styles.None)
-      view.point() = view.point() + (0, docPrefix.get.length)
-    }
+    if (inDoc) view.point() = commenter.insertDocPre(view.point())
     reindentAtPoint()
   }
   private val openDocM = Matcher.exact("/**")
