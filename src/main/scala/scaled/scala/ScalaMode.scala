@@ -100,7 +100,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
 
     def insertDocPre (p :Loc) :Loc = {
-      buffer.insert(p, docPrefix, Styles.None)
+      buffer.insert(p, Line(docPrefix))
       p + (0, docPrefix.length)
     }
   }
