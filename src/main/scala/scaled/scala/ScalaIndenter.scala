@@ -5,8 +5,8 @@
 package scaled.scala
 
 import scaled._
-import scaled.major.CodeConfig
-import scaled.util.{Chars, Block, Indenter}
+import scaled.code.{CodeConfig, Block, Indenter}
+import scaled.util.Chars
 
 object ScalaIndenter {
   import Indenter._

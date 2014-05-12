@@ -6,8 +6,8 @@ package scaled.scala
 
 import scaled._
 import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
-import scaled.major.CodeConfig
-import scaled.util.{Chars, Commenter, Indenter}
+import scaled.code.{CodeConfig, Commenter, Indenter}
+import scaled.util.Chars
 
 object ScalaConfig extends Config.Defs {
   import EditorConfig._
