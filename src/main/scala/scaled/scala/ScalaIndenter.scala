@@ -12,14 +12,18 @@ object ScalaIndenter {
   import Indenter._
   import Chars._
 
+  // matchers used by various bits below
+  val classTraitObjectM = Matcher.regexp("""\b(class|trait|object)\b""")
+  val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
+
   /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
     * `extends` and `with` clauses before falling back to the standard [[readIndentSkipArglist]].
     */
   def readBlockIndent (buffer :BufferV, pos :Loc) :Int = {
-    // if we're looking at extends or with, move back to the line that contains "class" or "object"
-    // and indent relative to that
+    // if we're looking at extends or with, move back to the line that contains "class", "trait" or
+    // "object" and indent relative to that
     if (startsWith(buffer.line(pos), extendsOrWithM)) {
-      buffer.findBackward(classOrObjectM, pos.atCol(0)) match {
+      findCodeBackward(buffer, classTraitObjectM, pos.atCol(0), buffer.start) match {
         case Loc.None => println(s"Missing (object|class) for block on (with|extends) line!") ; 0
         case      loc => readIndent(buffer, loc)
       }
@@ -27,8 +31,6 @@ object ScalaIndenter {
     // otherwise fall back to readIndentSkipArglist
     else readIndentSkipArglist(buffer, pos)
   }
-  private val classOrObjectM = Matcher.regexp("""\b(class|object)\b""")
-  private val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
 
   /** If the previous line ends with `=`, insets this line by one step relative to it. */
   class ValueExprBody (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
@@ -66,14 +68,13 @@ object ScalaIndenter {
       }
   }
 
-  /** Indents `extends` relative to a preceding `(class|object)` line. */
+  /** Indents `extends` relative to a preceding `(class|trait|object)` line. */
   class Extends (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
-    private val classObjectM = Matcher.regexp("""\b(class|object)\b""")
     private val extendsM = Matcher.regexp("""extends\b""")
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
       if (!line.matches(extendsM, pos.col)) None
-      else buffer.findBackward(classObjectM, pos, block.start) match {
+      else findCodeBackward(classTraitObjectM, pos, block.start) match {
         case Loc.None => None
         case loc =>
           debug(s"Indenting extends relative to class/object @ $loc")
@@ -88,7 +89,7 @@ object ScalaIndenter {
     private val openM = Matcher.exact("/*")
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] =
-      if (!buffer.stylesAt(pos).contains(CodeConfig.docStyle) || !startsWith(line, starM)) None
+      if (buffer.syntaxAt(pos) != Syntax.DocComment || !startsWith(line, starM)) None
       else {
         // scan back to the first line of the comment and indent two from there; the logic is
         // slightly weirded to ensure that we don't go past the start of the buffer even if the

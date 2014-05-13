@@ -97,6 +97,9 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     override def commentPrefix = "//"
     override def docPrefix = "*"
 
+    private val openDocM = Matcher.exact("/**")
+    private val closeDocM = Matcher.exact("*/")
+
     def inDoc (p :Loc) :Boolean = {
       val line = buffer.line(p)
       // we need to be on doc-styled text...
@@ -112,6 +115,11 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
       buffer.insert(p, Line(docPrefix))
       p + (0, docPrefix.length)
     }
+
+    override def commentDelimLen (line :LineV, col :Int) =
+      if (line.matches(openDocM, col)) openDocM.matchLength
+      else if (line.matches(closeDocM, col)) closeDocM.matchLength
+      else super.commentDelimLen(line, col)
   }
   override val commenter :ScalaCommenter = new ScalaCommenter(buffer)
 
@@ -128,8 +136,6 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     if (inDoc) view.point() = commenter.insertDocPre(view.point())
     reindentAtPoint()
   }
-  private val openDocM = Matcher.exact("/**")
-  private val closeDocM = Matcher.exact("*/")
 
   // TODO: more things!
 }
