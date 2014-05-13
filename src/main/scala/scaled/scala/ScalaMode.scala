@@ -39,6 +39,14 @@ object ScalaConfig extends Config.Defs {
     effacer("variable.other.type", variableStyle)
   )
 
+  // map TextMate grammar scopes to Scaled syntax definitions
+  val syntaxers = List(
+    syntaxer("comment.line", Syntax.LineComment),
+    syntaxer("comment.block", Syntax.DocComment),
+    syntaxer("constant", Syntax.OtherLiteral),
+    syntaxer("string", Syntax.StringLiteral)
+  )
+
   lazy val grammars = Seq(Grammar.parse(stream("Scala.tmLanguage")))
 }
 
@@ -60,6 +68,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   override def grammars = ScalaConfig.grammars
   override def effacers = ScalaConfig.effacers
+  override def syntaxers = ScalaConfig.syntaxers
 
   override val indenters = List(
     new Indenter.PairAnchorAlign(config, buffer) {
