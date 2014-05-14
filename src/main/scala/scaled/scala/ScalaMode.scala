@@ -95,6 +95,8 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   class ScalaCommenter (buffer :Buffer) extends Commenter(buffer) {
     override def linePrefix  = "//"
+    override def blockOpen = "/*"
+    override def blockClose = "*/"
     override def blockPrefix = "*"
     override def docPrefix   = "*"
 
