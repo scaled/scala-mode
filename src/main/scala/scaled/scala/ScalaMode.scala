@@ -93,7 +93,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   )
 
-  class ScalaCommenter (buffer :Buffer) extends Commenter(buffer) {
+  class ScalaCommenter extends Commenter {
     override def linePrefix  = "//"
     override def blockOpen = "/*"
     override def blockClose = "*/"
@@ -124,7 +124,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
       else if (line.matches(closeDocM, col)) closeDocM.matchLength
       else super.commentDelimLen(line, col)
   }
-  override val commenter :ScalaCommenter = new ScalaCommenter(buffer)
+  override val commenter :ScalaCommenter = new ScalaCommenter()
 
   //
   // FNs
