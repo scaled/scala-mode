@@ -10,7 +10,6 @@ import scaled.code.{CodeConfig, Commenter, Indenter}
 import scaled.util.Chars
 
 object ScalaConfig extends Config.Defs {
-  import EditorConfig._
   import CodeConfig._
   import GrammarConfig._
 
@@ -19,7 +18,7 @@ object ScalaConfig extends Config.Defs {
     effacer("comment.line", commentStyle),
     effacer("comment.block", docStyle),
     effacer("constant", constantStyle),
-    effacer("invalid", warnStyle),
+    effacer("invalid", invalidStyle),
     effacer("keyword", keywordStyle),
     effacer("string", stringStyle),
 
