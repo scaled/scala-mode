@@ -6,4 +6,5 @@ descrip: Provides language support for Scala.
 license: New BSD
  srcdir: src/main/scala
  bindir: target/classes
+ depend: git:https://github.com/scaled/java-mode.git
  depend: mvn:com.samskivert.scaled:textmate-grammar:1.0-SNAPSHOT:jar

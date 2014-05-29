@@ -5,9 +5,9 @@
 package scaled.scala
 
 import scaled._
-import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
 import scaled.code.{CodeConfig, Commenter, Indenter}
-import scaled.util.Chars
+import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
+import scaled.java.{JavaCommenter, JavaIndenter}
 
 object ScalaConfig extends Config.Defs {
   import CodeConfig._
@@ -56,7 +56,7 @@ object ScalaConfig extends Config.Defs {
        desc="A major editing mode for the Scala language.")
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   import CodeConfig._
-  import Chars._
+  import scaled.util.Chars._
 
   override def configDefs = ScalaConfig :: super.configDefs
 
@@ -83,7 +83,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     new Indenter.IfElseIfElseAlign(config, buffer),
     new ScalaIndenter.ValueExprBody(config, buffer),
     new ScalaIndenter.Extends(config, buffer),
-    new ScalaIndenter.Scaladoc(config, buffer),
+    new JavaIndenter.Javadoc(config, buffer),
     new Indenter.OneLinerWithArgs(config, buffer, blocker, Set("if", "while", "for")),
     new Indenter.OneLinerNoArgs(config, buffer, Set("else", "do", "try", "finally")),
     new ScalaIndenter.CaseBody(config, buffer),
@@ -92,38 +92,16 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   )
 
-  class ScalaCommenter extends Commenter {
-    override def linePrefix  = "//"
-    override def blockOpen = "/*"
-    override def blockClose = "*/"
-    override def blockPrefix = "*"
-    override def docPrefix   = "*"
-
-    private val openDocM = Matcher.exact("/**")
-    private val closeDocM = Matcher.exact("*/")
-
-    def inDoc (p :Loc) :Boolean = {
-      val line = buffer.line(p)
-      // we need to be on doc-styled text...
-      ((buffer.stylesNear(p) contains docStyle) &&
-       // and not on (or before) the open doc (/**)
-       // (the grammar marks all whitespace leading up to the open doc in comment style, meh)
-       (line.indexOf(openDocM, p.col) == -1) &&
-       // and not on or after the close doc (*/)
-       (line.lastIndexOf(closeDocM, p.col) == -1))
+  override val commenter :JavaCommenter = new JavaCommenter() {
+    // the scala grammar marks all whitespace leading up to the open doc in comment style, so we
+    // have to hack this predicate a bit
+    override def inDoc (buffer :BufferV, p :Loc) :Boolean = {
+      super.inDoc(buffer, p) && {
+        val line = buffer.line(p)
+        (line.indexOf(openDocM, p.col) == -1)
+      }
     }
-
-    def insertDocPre (p :Loc) :Loc = {
-      buffer.insert(p, Line(docPrefix))
-      p + (0, docPrefix.length)
-    }
-
-    override def commentDelimLen (line :LineV, col :Int) =
-      if (line.matches(openDocM, col)) openDocM.matchLength
-      else if (line.matches(closeDocM, col)) closeDocM.matchLength
-      else super.commentDelimLen(line, col)
   }
-  override val commenter :ScalaCommenter = new ScalaCommenter()
 
   //
   // FNs
@@ -133,9 +111,9 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
          * before indenting. TODO: other smarts.""")
   def electricNewline () {
     // shenanigans to determine whether we should auto-insert the doc prefix (* )
-    val inDoc = commenter.inDoc(view.point())
+    val inDoc = commenter.inDoc(buffer, view.point())
     newline()
-    if (inDoc) view.point() = commenter.insertDocPre(view.point())
+    if (inDoc) view.point() = commenter.insertDocPre(buffer, view.point())
     reindentAtPoint()
   }
 
