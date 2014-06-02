@@ -70,24 +70,24 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override def syntaxers = ScalaConfig.syntaxers
 
   override val indenters = List(
-    new Indenter.PairAnchorAlign(config, buffer) {
+    new Indenter.PairAnchorAlign(indentCtx) {
       protected val anchorM = Matcher.regexp("\\bfor\\b")
       protected val secondM = Matcher.regexp("yield\\b")
     },
-    new Indenter.PairAnchorAlign(config, buffer) {
+    new Indenter.PairAnchorAlign(indentCtx) {
       protected val anchorM = Matcher.regexp("\\bextends\\b")
       protected val secondM = Matcher.regexp("with\\b")
     },
-    new Indenter.TryCatchAlign(config, buffer),
-    new Indenter.TryFinallyAlign(config, buffer),
-    new Indenter.IfElseIfElseAlign(config, buffer),
-    new ScalaIndenter.ValueExprBody(config, buffer),
-    new ScalaIndenter.Extends(config, buffer),
-    new JavaIndenter.Javadoc(config, buffer),
-    new Indenter.OneLinerWithArgs(config, buffer, blocker, Set("if", "while", "for")),
-    new Indenter.OneLinerNoArgs(config, buffer, Set("else", "do", "try", "finally")),
-    new ScalaIndenter.CaseBody(config, buffer),
-    new Indenter.ByBlock(config, buffer) {
+    new Indenter.TryCatchAlign(indentCtx),
+    new Indenter.TryFinallyAlign(indentCtx),
+    new Indenter.IfElseIfElseAlign(indentCtx),
+    new ScalaIndenter.ValueExprBody(indentCtx),
+    new ScalaIndenter.Extends(indentCtx),
+    new JavaIndenter.Javadoc(indentCtx),
+    new Indenter.OneLinerWithArgs(indentCtx, blocker, Set("if", "while", "for")),
+    new Indenter.OneLinerNoArgs(indentCtx, Set("else", "do", "try", "finally")),
+    new ScalaIndenter.CaseBody(indentCtx),
+    new Indenter.ByBlock(indentCtx) {
       override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(buffer, pos)
     }
   )

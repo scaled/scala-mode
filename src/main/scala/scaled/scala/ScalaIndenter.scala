@@ -33,7 +33,7 @@ object ScalaIndenter {
   }
 
   /** If the previous line ends with `=`, insets this line by one step relative to it. */
-  class ValueExprBody (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
+  class ValueExprBody (ctx :Context) extends Indenter(ctx) {
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
       // seek backward to the first non-whitespace character
       val pc = buffer.scanBackward(isNotWhitespace, pos, block.start)
@@ -47,7 +47,7 @@ object ScalaIndenter {
   }
 
   /** If we're in a `case` statement's pseudo-block, inset this line one step from the case. */
-  class CaseBody (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
+  class CaseBody (ctx :Context) extends Indenter(ctx) {
     private val caseArrowM = Matcher.regexp("""case\s.*=>""")
     private val closeB = Matcher.exact("}")
 
@@ -69,7 +69,7 @@ object ScalaIndenter {
   }
 
   /** Indents `extends` relative to a preceding `(class|trait|object)` line. */
-  class Extends (config :Config, buffer :BufferV) extends Indenter(config, buffer) {
+  class Extends (ctx :Context) extends Indenter(ctx) {
     private val extendsM = Matcher.regexp("""extends\b""")
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
