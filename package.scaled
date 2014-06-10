@@ -1,8 +1,8 @@
    name: scala-mode
+ source: git:https://github.com/scaled/scala-mode.git
 version: 1.0
 descrip: Provides language support for Scala.
  weburl: https://github.com/scaled/scala-mode
- srcurl: git:https://github.com/scaled/scala-mode.git
 license: New BSD
  srcdir: src/main/scala
  bindir: target/classes
