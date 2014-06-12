@@ -4,6 +4,4 @@ version: 1.0
 descrip: Provides language support for Scala.
  weburl: https://github.com/scaled/scala-mode
 license: New BSD
- srcdir: src/main/scala
- bindir: target/classes
  depend: git:https://github.com/scaled/java-mode.git
