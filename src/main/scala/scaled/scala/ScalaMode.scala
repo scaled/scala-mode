@@ -22,7 +22,7 @@ object ScalaConfig extends Config.Defs {
     effacer("keyword", keywordStyle),
     effacer("string", stringStyle),
 
-    effacer("entity.name.package", constantStyle),
+    effacer("entity.name.package", moduleStyle),
     effacer("entity.name.class", typeStyle),
     effacer("entity.other.inherited-class", typeStyle),
     effacer("entity.name.function", functionStyle),
@@ -31,7 +31,7 @@ object ScalaConfig extends Config.Defs {
     effacer("storage.modifier", keywordStyle),
     effacer("storage.type.primitive", typeStyle),
 
-    effacer("variable.package", constantStyle),
+    effacer("variable.package", moduleStyle),
     effacer("variable.import", typeStyle),
     effacer("variable.language", constantStyle),
     // effacer("variable.parameter", variableStyle), // leave params white
