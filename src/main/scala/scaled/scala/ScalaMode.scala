@@ -103,6 +103,12 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   }
 
+  override def detectIndent = new Indenter.Detecter(3) {
+    private val vvdM = Matcher.regexp("(val|var|def) ")
+    // if the line starts with 'val/var/def ' then it is meaningful
+    def consider (line :LineV, start :Int) :Int = if (line.matches(vvdM, start)) 1 else 0
+  }.detectIndent(buffer)
+
   //
   // FNs
 
