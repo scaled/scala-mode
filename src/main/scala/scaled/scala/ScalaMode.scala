@@ -88,7 +88,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     new Indenter.OneLinerNoArgs(indentCtx, Set("else", "do", "try", "finally")),
     new ScalaIndenter.CaseBody(indentCtx),
     new Indenter.ByBlock(indentCtx) {
-      override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(buffer, pos)
+      override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(indentCtx, pos)
     }
   )
 

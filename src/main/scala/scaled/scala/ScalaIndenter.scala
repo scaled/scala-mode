@@ -19,17 +19,25 @@ object ScalaIndenter {
   /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
     * `extends` and `with` clauses before falling back to the standard [[readIndentSkipArglist]].
     */
-  def readBlockIndent (buffer :BufferV, pos :Loc) :Int = {
+  def readBlockIndent (ctx :Context, pos :Loc) :Int =
+    readBlockIndent(ctx, ctx.blocker.require(pos, Syntax.Default), pos)
+
+  /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
+    * `extends` and `with` clauses before falling back to the standard [[readIndentSkipArglist]].
+    * @param block the block that encloses `pos`. Use the two arg version of this method if that
+    * block is not handy, and it will be computed.
+    */
+  def readBlockIndent (ctx :Context, block :Block, pos :Loc) :Int = {
     // if we're looking at extends or with, move back to the line that contains "class", "trait" or
     // "object" and indent relative to that
-    if (startsWith(buffer.line(pos), extendsOrWithM)) {
-      findCodeBackward(buffer, classTraitObjectM, pos.atCol(0), buffer.start) match {
+    if (startsWith(ctx.buffer.line(pos), extendsOrWithM)) {
+      findCodeBackward(ctx, classTraitObjectM, pos.atCol(0), block) match {
         case Loc.None => println(s"Missing (object|class) for block on (with|extends) line!") ; 0
-        case      loc => readIndent(buffer, loc)
+        case      loc => readIndent(ctx.buffer, loc)
       }
     }
     // otherwise fall back to readIndentSkipArglist
-    else readIndentSkipArglist(buffer, pos)
+    else readIndentSkipArglist(ctx.buffer, pos)
   }
 
   /** If the previous line ends with `=`, insets this line by one step relative to it. */
@@ -41,7 +49,7 @@ object ScalaIndenter {
       if (pc.row != pos.row-1 || buffer.charAt(pc) != '=') None
       else {
         debug(s"Indenting one step from 'foo =' @ $pc")
-        Some(indentFrom(readBlockIndent(buffer, pc), 1))
+        Some(indentFrom(readBlockIndent(ctx, pc), 1))
       }
     }
   }
@@ -74,7 +82,7 @@ object ScalaIndenter {
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
       if (!line.matches(extendsM, pos.col)) None
-      else findCodeBackward(classTraitObjectM, pos, block.start) match {
+      else findCodeBackward(classTraitObjectM, pos, block) match {
         case Loc.None => None
         case loc =>
           debug(s"Indenting extends relative to class/object @ $loc")
