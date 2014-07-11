@@ -13,7 +13,7 @@ object ScalaIndenter {
   import Chars._
 
   // matchers used by various bits below
-  val classTraitObjectM = Matcher.regexp("""\b(class|trait|object)\b""")
+  val ctoM = Matcher.regexp("""\b(class|trait|object)\b""")
   val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
 
   /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
@@ -31,8 +31,8 @@ object ScalaIndenter {
     // if we're looking at extends or with, move back to the line that contains "class", "trait" or
     // "object" and indent relative to that
     if (startsWith(ctx.buffer.line(pos), extendsOrWithM)) {
-      findCodeBackward(ctx, classTraitObjectM, pos.atCol(0), block) match {
-        case Loc.None => println(s"Missing (object|class) for block on (with|extends) line!") ; 0
+      findCodeBackward(ctx, ctoM, pos.atCol(0), block) match {
+        case Loc.None => println(s"Missing $ctoM for block ($block) on $extendsOrWithM line!") ; 0
         case      loc => readIndent(ctx.buffer, loc)
       }
     }
@@ -82,7 +82,7 @@ object ScalaIndenter {
 
     def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
       if (!line.matches(extendsM, pos.col)) None
-      else findCodeBackward(classTraitObjectM, pos, block) match {
+      else findCodeBackward(ctoM, pos, block) match {
         case Loc.None => None
         case loc =>
           debug(s"Indenting extends relative to class/object @ $loc")
