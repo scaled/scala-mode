@@ -40,16 +40,16 @@ object ScalaIndenter {
     else readIndentSkipArglist(ctx.buffer, pos)
   }
 
-  /** If the previous line ends with `=`, insets this line by one step relative to it. */
-  class ValueExprBody (ctx :Context) extends Indenter(ctx) {
-    def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
-      // seek backward to the first non-whitespace character
-      val pc = buffer.scanBackward(isNotWhitespace, pos, block.start)
-      // if it's not on the preceding line, or it's not an '=', we're inapplicable
-      if (pc.row != pos.row-1 || buffer.charAt(pc) != '=') None
+  /** If the previous line ends with `=` (indicating a continued value expression) or a `.`
+    * (indicating a continued method select chain), insets this line by one step relative to it. */
+  class ContinuedExpr (ctx :Context) extends PrevLineEnd(ctx) {
+    def apply (block :Block, line :LineV, pos :Loc, prevPos :Loc) :Option[Int] = {
+      // if the line doesn't end with '=', we're inapplicable
+      val c = buffer.charAt(prevPos)
+      if (c != '=' && c != '.') None
       else {
-        debug(s"Indenting one step from 'foo =' @ $pc")
-        Some(indentFrom(readBlockIndent(ctx, pc), 1))
+        debug(s"Indenting one step from 'foo $c' @ $prevPos")
+        Some(indentFrom(readBlockIndent(ctx, prevPos), 1))
       }
     }
   }
