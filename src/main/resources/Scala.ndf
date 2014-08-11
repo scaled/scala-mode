@@ -1,0 +1,194 @@
+name: Scala
+scopeName: source.scala
+foldStart: /\*\*|\{\s*$
+foldStop: \*\*/|^\s*\}
+repository:
+ block-comments:
+  multi:
+   name: comment.block.scala
+   begin: /\*
+   end: \*/
+   patterns:
+    include: #block-comments
+    single:
+     pattern: (?x)\
+			(?! /\*)\
+			(?! \*/)\
+		  
+ char-literal:
+  single:
+   name: constant.character.literal.scala
+   pattern: '\\?.'
+ comments:
+  single:
+   name: comment.line.double-slash.scala
+   pattern: (//).*$\n?
+   caps: 1=punctuation.definition.comment.scala
+  single:
+   name: comment.block.empty.scala
+   pattern: /\*\*/
+   caps: 0=punctuation.definition.comment.scala
+  multi:
+   name: comment.block.documentation.scala
+   begin: (^\s*)?/\*\*
+   bcaps: 0=punctuation.definition.comment.scala
+   end: \*/(\s*\n)?
+   ecaps: 0=punctuation.definition.comment.scala
+   patterns:
+    single:
+     name: keyword.other.documentation.scaladoc.scala
+     pattern: (@\w+\s)
+    single:
+     name: keyword.other.documentation.scaladoc.link.scala
+     pattern: \{@link\s+[^\}]*\}
+ constants:
+  single:
+   name: constant.language.scala
+   pattern: \b(false|null|true|Nil|None)\b
+  single:
+   name: constant.numeric.scala
+   pattern: \b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\.?[0-9]*)|(\.[0-9]+))((e|E)(\+|-)?[0-9]+)?)([LlFfUuDd]|UL|ul)?\b
+  single:
+   name: variable.language.scala
+   pattern: \b(this|super|self)\b
+  single:
+   name: storage.type.primitive.scala
+   pattern: \b(Unit|Boolean|Byte|Char|Short|Int|Float|Long|Double)\b
+ declarations:
+  single:
+   pattern: (?x)\
+						\b(def)\s+\
+						(([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`|[^\w\[\(\:\_\s]+)
+   caps: 1=keyword.declaration.scala 2=entity.name.function.declaration
+  single:
+   pattern: (case)?\b(class|trait|object)\s+([^\s\{\(\[]+)
+   caps: 1=keyword.declaration.scala 2=keyword.declaration.scala 3=entity.name.class.declaration
+  single:
+   pattern: \b(type)\s+(([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`)
+   caps: 1=keyword.declaration.scala 2=entity.name.type.declaration
+  single:
+   pattern: \b(?:(val)|(var))\s+(([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`)?
+   caps: 1=keyword.declaration.stable.scala 2=keyword.declaration.volatile.scala 3=entity.name.val.declaration
+  single:
+   pattern: \b(package object)\s+([^\s\{\(\[]+)
+   caps: 1=keyword.declaration.scala 2=entity.name.class.declaration
+  single:
+   name: meta.package.scala
+   pattern: \b(package)\s+([\w\.]+)
+   caps: 1=keyword.other.scoping.scala 2=entity.name.package.scala
+ empty-parentheses:
+  single:
+   name: meta.parentheses.scala
+   pattern: \(\)
+ imports:
+  multi:
+   name: meta.import.scala
+   begin: \b(import)\s+
+   bcaps: 1=keyword.other.import.scala
+   end: (?<=(;|$))
+   patterns:
+    include: #comments
+    single:
+     name: variable.package.scala
+     pattern: ([^\s\{;.]+)\s*\.\s*
+    single:
+     name: variable.import.scala
+     pattern: ([^\s\{;.]+)\s*
+    multi:
+     name: meta.import.selector.scala
+     begin: \{
+     end: \}
+     patterns:
+      single:
+       pattern: (?x) \s*\
+				([^\s.,}]+) \s*\
+				(=>) \s*\
+				([^\s.,}]+) \s*\
+			  
+       caps: 1=variable.import.renamed-from.scala 2=keyword.other.arrow.scala 3=variable.import.renamed-to.scala
+      single:
+       name: variable.import.scala
+       pattern: ([^\s.,}]+)
+ inheritance:
+  single:
+   pattern: (extends|with)\s+([^\s\{\(\[\]]+)
+   caps: 1=keyword.declaration.scala 2=entity.other.inherited-class.scala
+ initialization:
+  single:
+   pattern: \b(new)\s+([^\s\{\(\[]+)
+   caps: 1=keyword 2=entity.name.class
+ keywords:
+  single:
+   name: keyword.control.flow.jump.scala
+   pattern: \b(return|throw)\b
+  single:
+   name: keyword.control.flow.scala
+   pattern: \b(else|if|do|while|for|yield|match|case)\b
+  single:
+   name: keyword.control.exception.scala
+   pattern: \b(catch|finally|try)\b
+ parameter-list:
+  single:
+   pattern: ([a-zA-Z$_][a-zA-Z0-9$_]*)\s*:\s*([A-Za-z0-9][\w|_|?|\.]*)?,?
+   caps: 1=variable.parameter 2=entity.name.class
+ qualifiedClassName:
+  single:
+   pattern: (\b([A-Z][\w]*))
+   caps: 1=entity.name.class
+ scala-symbol:
+  single:
+   pattern: ('\w+)
+   caps: 1=entity.name.symbol
+ storage-modifiers:
+  single:
+   name: storage.modifier.access
+   pattern: \b(private\[\S+\]|protected\[\S+\]|private|protected)\b
+  single:
+   name: storage.modifier.other
+   pattern: \b(synchronized|@volatile|abstract|final|lazy|sealed|implicit|override|@transient|@native)\b
+ strings:
+  multi:
+   name: string.quoted.triple.scala
+   begin: """
+   end: """
+  multi:
+   name: string.quoted.double.scala
+   begin: (?<!\\)"
+   end: "
+   patterns:
+    single:
+     name: invalid.string.newline
+     pattern: \n
+    single:
+     name: constant.character.escape.scala
+     pattern: \\.
+ xml-attribute:
+  single:
+   pattern: (\w+)=("[^"]*")
+   caps: 1=entity.other.attribute-name 2=string.quoted.double
+ xml-literal:
+  multi:
+   name: text.xml
+   begin: </?([a-zA-Z0-9]+)
+   bcaps: 1=entity.name.tag
+   end: /?>
+   patterns:
+    include: #xml-literal
+    include: #xml-attribute
+patterns:
+ include: #storage-modifiers
+ include: #keywords
+ include: #declarations
+ include: #inheritance
+ include: #imports
+ include: #comments
+ include: #block-comments
+ include: #strings
+ include: #initialization
+ include: #constants
+ include: #char-literal
+ include: #scala-symbol
+ include: #empty-parentheses
+ include: #parameter-list
+ include: #qualifiedClassName
+ include: #xml-literal

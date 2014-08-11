@@ -46,7 +46,7 @@ object ScalaConfig extends Config.Defs {
     syntaxer("string", Syntax.StringLiteral)
   )
 
-  lazy val grammars = Seq(Grammar.parse(stream("Scala.tmLanguage")))
+  lazy val grammars = Seq(Grammar.parseNDF(stream("Scala.ndf")))
 }
 
 @Major(name="scala",
