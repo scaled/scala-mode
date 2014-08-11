@@ -12,9 +12,8 @@ repository:
     include: #block-comments
     single:
      pattern: (?x)\
-			(?! /\*)\
-			(?! \*/)\
-		  
+   (?! /\*)\
+   (?! \*/)
  char-literal:
   single:
    name: constant.character.literal.scala
@@ -57,8 +56,8 @@ repository:
  declarations:
   single:
    pattern: (?x)\
-						\b(def)\s+\
-						(([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`|[^\w\[\(\:\_\s]+)
+      \b(def)\s+\
+      (([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`|[^\w\[\(\:\_\s]+)
    caps: 1=keyword.declaration.scala 2=entity.name.function.declaration
   single:
    pattern: (case)?\b(class|trait|object)\s+([^\s\{\(\[]+)
@@ -101,10 +100,9 @@ repository:
      patterns:
       single:
        pattern: (?x) \s*\
-				([^\s.,}]+) \s*\
-				(=>) \s*\
-				([^\s.,}]+) \s*\
-			  
+    ([^\s.,}]+) \s*\
+    (=>) \s*\
+    ([^\s.,}]+) \s*
        caps: 1=variable.import.renamed-from.scala 2=keyword.other.arrow.scala 3=variable.import.renamed-to.scala
       single:
        name: variable.import.scala
