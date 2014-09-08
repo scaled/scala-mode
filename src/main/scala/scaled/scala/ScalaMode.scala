@@ -60,10 +60,9 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   override def configDefs = ScalaConfig :: super.configDefs
 
-  override def keymap = super.keymap ++ Seq(
-    bind("ENTER",   "electric-newline"),
-    bind("S-ENTER", "electric-newline")
-  )
+  override def keymap = super.keymap.
+    bind("ENTER",   "electric-newline").
+    bind("S-ENTER", "electric-newline");
 
   override def grammars = ScalaConfig.grammars
   override def effacers = ScalaConfig.effacers
