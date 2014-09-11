@@ -7,7 +7,7 @@ package scaled.scala
 import scaled._
 import scaled.code.{CodeConfig, Commenter, Indenter}
 import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
-import scaled.java.{JavaCommenter, JavaIndenter}
+import scaled.java.JavaIndenter
 
 object ScalaConfig extends Config.Defs {
   import CodeConfig._
@@ -91,7 +91,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   )
 
-  override val commenter :JavaCommenter = new JavaCommenter() {
+  override val commenter :ScalaCommenter = new ScalaCommenter() {
     // the scala grammar marks all whitespace leading up to the open doc in comment style, so we
     // have to hack this predicate a bit
     override def inDoc (buffer :BufferV, p :Loc) :Boolean = {
