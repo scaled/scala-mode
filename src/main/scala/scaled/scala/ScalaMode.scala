@@ -46,7 +46,7 @@ object ScalaConfig extends Config.Defs {
     syntaxer("string", Syntax.StringLiteral)
   )
 
-  lazy val grammars = Seq(Grammar.parseNDF(stream("Scala.ndf")))
+  val grammars = reloadable(Seq("Scala.ndf"))(Grammar.parseNDFs)
 }
 
 @Major(name="scala",
@@ -64,7 +64,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     bind("ENTER",   "electric-newline").
     bind("S-ENTER", "electric-newline");
 
-  override def grammars = ScalaConfig.grammars
+  override def grammars = ScalaConfig.grammars.get
   override def effacers = ScalaConfig.effacers
   override def syntaxers = ScalaConfig.syntaxers
 
