@@ -60,10 +60,6 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   override def configDefs = ScalaConfig :: super.configDefs
 
-  override def keymap = super.keymap.
-    bind("ENTER",   "electric-newline").
-    bind("S-ENTER", "electric-newline");
-
   override def grammars = ScalaConfig.grammars.get
   override def effacers = ScalaConfig.effacers
   override def syntaxers = ScalaConfig.syntaxers
@@ -111,15 +107,13 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   //
   // FNs
 
-  @Fn("""Inserts a newline, then indents the subsequent line. Handles other "smart" cases such as:
-         If newline is inserted in the middle of a Scaladoc comment, the next line is prepended with
-         * before indenting. TODO: other smarts.""")
-  def electricNewline () {
+  override def electricNewline () {
     // shenanigans to determine whether we should auto-insert the doc prefix (* )
-    val inDoc = commenter.inDoc(buffer, view.point())
-    newline()
-    if (inDoc) view.point() = commenter.insertDocPre(buffer, view.point())
-    reindentAtPoint()
+    if (commenter.inDoc(buffer, view.point())) {
+      newline()
+      view.point() = commenter.insertDocPre(buffer, view.point())
+      reindentAtPoint()
+    } else super.electricNewline()
   }
 
   // TODO: more things!
