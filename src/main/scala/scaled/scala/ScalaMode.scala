@@ -79,7 +79,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     new ScalaIndenter.ContinuedExpr(indentCtx),
     new ScalaIndenter.Extends(indentCtx),
     new JavaIndenter.Javadoc(indentCtx),
-    new Indenter.OneLinerWithArgs(indentCtx, blocker, Set("if", "while", "for")),
+    new Indenter.OneLinerWithArgs(indentCtx, Set("if", "while", "for")),
     new Indenter.OneLinerNoArgs(indentCtx, Set("else", "do", "try", "finally")),
     new ScalaIndenter.CaseBody(indentCtx),
     new Indenter.ByBlock(indentCtx) {
