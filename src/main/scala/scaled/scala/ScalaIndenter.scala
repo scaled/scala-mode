@@ -43,13 +43,13 @@ object ScalaIndenter {
   /** If the previous line ends with `=` (indicating a continued value expression) or a `.`
     * (indicating a continued method select chain), insets this line by one step relative to it. */
   class ContinuedExpr (ctx :Context) extends PrevLineEnd(ctx) {
-    def apply (block :Block, line :LineV, pos :Loc, prevPos :Loc) :Option[Int] = {
+    def apply (block :Block, line :LineV, pos :Loc, prevPos :Loc) :Int = {
       // if the line doesn't end with '=', we're inapplicable
       val c = buffer.charAt(prevPos)
-      if (c != '=' && c != '.') None
+      if (c != '=' && c != '.') NA
       else {
         debug(s"Indenting one step from 'foo $c' @ $prevPos")
-        Some(indentFrom(readBlockIndent(ctx, prevPos), 1))
+        indentFrom(readBlockIndent(ctx, prevPos), 1)
       }
     }
   }
@@ -59,19 +59,19 @@ object ScalaIndenter {
     private val caseArrowM = Matcher.regexp("""case\s.*=>""")
     private val closeB = Matcher.exact("}")
 
-    def apply (block :Block, line :LineV, pos :Loc) :Option[Int] =
+    def apply (block :Block, line :LineV, pos :Loc) :Int =
       // if we're looking at 'case...=>' or '}' then don't apply this rule
-      if (startsWith(line, caseArrowM) || startsWith(line, closeB)) None
+      if (startsWith(line, caseArrowM) || startsWith(line, closeB)) NA
       // otherwise if the first line after the start of our block is 'case ... =>' then we're in a
       // case pseudo block, so indent relative to the 'case' not the block
       else {
         // TODO: either skip comments, or search for caseArrowM and then make sure it is in our
         // same block... meh
         val caseLine = buffer.line(block.start.nextL)
-        if (!startsWith(caseLine, caseArrowM)) None
+        if (!startsWith(caseLine, caseArrowM)) NA
         else {
           debug(s"Identing one step from 'case' @ ${block.start.nextL}")
-          Some(indentFrom(readIndent(caseLine), 1))
+          indentFrom(readIndent(caseLine), 1)
         }
       }
   }
@@ -80,13 +80,13 @@ object ScalaIndenter {
   class Extends (ctx :Context) extends Indenter(ctx) {
     private val extendsM = Matcher.regexp("""extends\b""")
 
-    def apply (block :Block, line :LineV, pos :Loc) :Option[Int] = {
-      if (!line.matches(extendsM, pos.col)) None
+    def apply (block :Block, line :LineV, pos :Loc) :Int = {
+      if (!line.matches(extendsM, pos.col)) NA
       else findCodeBackward(ctoM, pos, block) match {
-        case Loc.None => None
+        case Loc.None => NA
         case loc =>
           debug(s"Indenting extends relative to class/object @ $loc")
-          Some(indentFrom(readIndent(buffer, loc), 2))
+          indentFrom(readIndent(buffer, loc), 2)
       }
     }
   }
