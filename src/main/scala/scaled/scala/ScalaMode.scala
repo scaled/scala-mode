@@ -5,9 +5,8 @@
 package scaled.scala
 
 import scaled._
-import scaled.code.{CodeConfig, Commenter, Indenter}
+import scaled.code.{CodeConfig, Commenter}
 import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
-import scaled.java.JavaIndenter
 
 object ScalaConfig extends Config.Defs {
   import CodeConfig._
@@ -64,28 +63,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override def effacers = ScalaConfig.effacers
   override def syntaxers = ScalaConfig.syntaxers
 
-  override val indenters = List(
-    new Indenter.PairAnchorAlign(indentCtx) {
-      protected val anchorM = Matcher.regexp("\\bfor\\b")
-      protected val secondM = Matcher.regexp("yield\\b")
-    },
-    new Indenter.PairAnchorAlign(indentCtx) {
-      protected val anchorM = Matcher.regexp("\\bextends\\b")
-      protected val secondM = Matcher.regexp("with\\b")
-    },
-    new Indenter.TryCatchAlign(indentCtx),
-    new Indenter.TryFinallyAlign(indentCtx),
-    new Indenter.IfElseIfElseAlign(indentCtx),
-    new ScalaIndenter.ContinuedExpr(indentCtx),
-    new ScalaIndenter.Extends(indentCtx),
-    new JavaIndenter.Javadoc(indentCtx),
-    new Indenter.OneLinerWithArgs(indentCtx, Set("if", "while", "for")),
-    new Indenter.OneLinerNoArgs(indentCtx, Set("else", "do", "try", "finally")),
-    new ScalaIndenter.CaseBody(indentCtx),
-    new Indenter.ByBlock(indentCtx) {
-      override def readBlockIndent (pos :Loc) = ScalaIndenter.readBlockIndent(indentCtx, pos)
-    }
-  )
+  override protected def createIndenter = new ScalaIndenter(buffer, config)
 
   override val commenter :ScalaCommenter = new ScalaCommenter() {
     // the scala grammar marks all whitespace leading up to the open doc in comment style, so we
@@ -97,12 +75,6 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
       }
     }
   }
-
-  override def detectIndent = new Indenter.Detecter(3) {
-    private val toksM = Matcher.regexp("(val|var|def|override|protected|private) ")
-    // if the line starts with one of the above tokens then it is meaningful
-    def consider (line :LineV, start :Int) :Int = if (line.matches(toksM, start)) 1 else 0
-  }.detectIndent(buffer)
 
   //
   // FNs

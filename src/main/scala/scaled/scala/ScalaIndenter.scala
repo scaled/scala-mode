@@ -5,89 +5,162 @@
 package scaled.scala
 
 import scaled._
-import scaled.code.{CodeConfig, Block, Indenter}
-import scaled.util.Chars
+import scaled.code.Indenter
 
-object ScalaIndenter {
+class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg) {
   import Indenter._
-  import Chars._
 
-  // matchers used by various bits below
-  val ctoM = Matcher.regexp("""\b(class|trait|object)\b""")
-  val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
-
-  /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
-    * `extends` and `with` clauses before falling back to the standard [[readIndentSkipArglist]].
-    */
-  def readBlockIndent (ctx :Context, pos :Loc) :Int =
-    readBlockIndent(ctx, ctx.blocker.require(pos, Syntax.Default), pos)
-
-  /** Handles reading block (and pseudo-block) indent for Scala code. This checks for wrapped
-    * `extends` and `with` clauses before falling back to the standard [[readIndentSkipArglist]].
-    * @param block the block that encloses `pos`. Use the two arg version of this method if that
-    * block is not handy, and it will be computed.
-    */
-  def readBlockIndent (ctx :Context, block :Block, pos :Loc) :Int = {
-    // if we're looking at extends or with, move back to the line that contains "class", "trait" or
-    // "object" and indent relative to that
-    if (startsWith(ctx.buffer.line(pos), extendsOrWithM)) {
-      findCodeBackward(ctx, ctoM, pos.atCol(0), block) match {
-        case Loc.None => println(s"Missing $ctoM for block ($block) on $extendsOrWithM line!") ; 0
-        case      loc => readIndent(ctx.buffer, loc)
-      }
+  override def computeIndent (state :State, base :Int, line :LineV, first :Int) = {
+    // bump extends/with in two indentation levels
+    if (line.matches(extendsOrWithM, first)) base + 2*indentWidth
+    // if we're in a faux case block...
+    else if (state.isInstanceOf[CaseS]) {
+      // ignore the block indent for subsequent case statements
+      if (line.matches(caseArrowM, first)) base - indentWidth
+      // ignore the block indent for the final close bracket
+      else if (line.charAt(first) == '}') base - 2*indentWidth
+      // otherwise stick to business as usual...
+      else super.computeIndent(state, base, line, first)
     }
-    // otherwise fall back to readIndentSkipArglist
-    else readIndentSkipArglist(ctx.buffer, pos)
+    else super.computeIndent(state, base, line, first)
   }
 
-  /** If the previous line ends with `=` (indicating a continued value expression) or a `.`
-    * (indicating a continued method select chain), insets this line by one step relative to it. */
-  class ContinuedExpr (ctx :Context) extends PrevLineEnd(ctx) {
-    def apply (block :Block, line :LineV, pos :Loc, prevPos :Loc) :Int = {
-      // if the line doesn't end with '=', we're inapplicable
-      val c = buffer.charAt(prevPos)
-      if (c != '=' && c != '.') NA
-      else {
-        debug(s"Indenting one step from 'foo $c' @ $prevPos")
-        indentFrom(readBlockIndent(ctx, prevPos), 1)
+  override protected def createStater = new BlockStater() {
+    private[this] var opensSLB = false
+    private[this] var slbExprOpen = -1
+    private[this] var slbExprClose = -1
+    private[this] var slbExpectsPair = false
+
+    override def adjustStart (line :LineV, first :Int, last :Int, start :State) :State = {
+      // reset our SLB tracking state
+      slbExprOpen = -1 ; slbExprClose = -1 ; slbExpectsPair = false
+      // if we're looking at an SLB, push a state for it
+      opensSLB = line.matches(singleLineBlockM, first)
+      if (opensSLB) {
+        val nstate = new SingleBlockS(singleLineBlockM.group(1), first, start)
+        // if this SLB has no associated expression (else or a do); set the expression open/close
+        // column to the start of the block so that the "pop on later block" code works properly
+        if (nstate.lacksExpr) {
+          slbExprOpen = first ; slbExprClose = first
+        }
+        // if this is an 'if' or 'else if', or a 'do', we want to know whether or not to expect to
+        // see a subsequent 'else' or 'while' so that we can determine if this statement should
+        // terminate a continued statement chain; we check to see whether that expected pair
+        // already occurs on this same line, in which case we don't expect it later; note that
+        // it's possible for an 'if' or 'else if' to simply not be followed by an 'else', and in
+        // that case we can potentially do the wrong thing, but there's only so much we can do
+        // without a full fledged Scala parser
+        slbExpectsPair = nstate.expectsPair(line)
+        nstate
       }
+      // if this line opens a block or doc comment, push a state for it
+      else if (line.matches(bcOpenM, first)) {
+        // if this is a doc comment which is followed by non-whitespace, then indent to match the
+        // second star rather than the first
+        val col = if (line.matches(firstLineDocM, first)) 2 else 1
+        new CommentS(col, start)
+      }
+      // if this line opens a match case which does not contain any code after the arrow, create a
+      // faux block to indent the case body
+      else if (line.matches(caseArrowM, first) && line.charAt(last) == '>') {
+        // if we're currently in the case block for the preceding case, pop it first
+        new CaseS(start.popIf(_.isInstanceOf[CaseS]))
+      }
+      // otherwise leave the start as is
+      else start
     }
-  }
 
-  /** If we're in a `case` statement's pseudo-block, inset this line one step from the case. */
-  class CaseBody (ctx :Context) extends Indenter(ctx) {
-    private val caseArrowM = Matcher.regexp("""case\s.*=>""")
-    private val closeB = Matcher.exact("}")
+    override def adjustEnd (line :LineV, first :Int, last :Int, start :State, cur :State) :State = {
+      var end = cur
+      // if this line closes a doc/block comment, pop our comment state from the stack
+      if (line.indexOf(bcCloseM, 0) >= 0) end = end.popIf(_.isInstanceOf[CommentS])
 
-    def apply (block :Block, line :LineV, pos :Loc) :Int =
-      // if we're looking at 'case...=>' or '}' then don't apply this rule
-      if (startsWith(line, caseArrowM) || startsWith(line, closeB)) NA
-      // otherwise if the first line after the start of our block is 'case ... =>' then we're in a
-      // case pseudo block, so indent relative to the 'case' not the block
-      else {
-        // TODO: either skip comments, or search for caseArrowM and then make sure it is in our
-        // same block... meh
-        val caseLine = buffer.line(block.start.nextL)
-        if (!startsWith(caseLine, caseArrowM)) NA
-        else {
-          debug(s"Identing one step from 'case' @ ${block.start.nextL}")
-          indentFrom(readIndent(caseLine), 1)
+      // if the last non-ws-non-comment char is beyond our SLB condition expression then pop the
+      // SLB state because the "body" was on the same line (this is normally done when we see any
+      // sort of bracket after our SLB expr, but it's possible that the SLB body contains no
+      // brackets, so we catch that case here)
+      if (opensSLB && last > slbExprClose) {
+        end = end.popIf(_.isInstanceOf[SingleBlockS])
+        opensSLB = false
+      }
+
+      // determine (heuristically) whether this line appears to be a complete statement
+      val isContinued = (last >= 0) && contChars.indexOf(line.charAt(last)) >= 0
+      val isComplete = !(isContinued || slbExpectsPair || end.isInstanceOf[BlockS])
+
+      // if we appear to be a complete statement, pop any continued statement state off the stack
+      if (isComplete) end.popIf(_.isInstanceOf[ContinuedS])
+      // if we're not already a continued statement, we may need to start being so
+      else if (isContinued) new ContinuedS(end.popIf(_.isInstanceOf[ContinuedS]))
+      // otherwise stick with what we have
+      else end
+    }
+
+    override def openBlock (line :LineV, open :Char, close :Char, col :Int, state :State) :State = {
+      var top = state
+      if (opensSLB) {
+        // if we're processing an SLB and this is the first block on the line, note its info
+        if (slbExprOpen == -1) slbExprOpen = col
+        // if we're opening another block after our SLB token's expression block, then pop the SLB
+        // state because we're either opening a multi-line block or we're seeing an expression
+        // which is cuddled onto the same line as the SLB; in either case we don't want our SLB
+        // state to cause the next line to be indented
+        else if (slbExprClose != -1) {
+          top = top.popIf(_.isInstanceOf[SingleBlockS])
+          opensSLB = false
         }
       }
-  }
-
-  /** Indents `extends` relative to a preceding `(class|trait|object)` line. */
-  class Extends (ctx :Context) extends Indenter(ctx) {
-    private val extendsM = Matcher.regexp("""extends\b""")
-
-    def apply (block :Block, line :LineV, pos :Loc) :Int = {
-      if (!line.matches(extendsM, pos.col)) NA
-      else findCodeBackward(ctoM, pos, block) match {
-        case Loc.None => NA
-        case loc =>
-          debug(s"Indenting extends relative to class/object @ $loc")
-          indentFrom(readIndent(buffer, loc), 2)
-      }
+      super.openBlock(line, open, close, col, top)
     }
+    override def closeBlock (line :LineV, close :Char, col :Int, state :State) :State = {
+      // if we're closing the expression block that goes along with our SLB, note the close column
+      if (opensSLB) state match {
+        case bs :BlockS if (bs.col == slbExprOpen) => slbExprClose = col
+        case _ => // ignore
+      }
+      super.closeBlock(line, close, col, state)
+    }
+
+    protected def contChars = ".+-="
   }
+
+  protected class CommentS (inset :Int, next :State) extends State(next) {
+    override def indent (config :Config, top :Boolean) = inset + next.indent(config)
+    override def show = s"CommentS($inset)"
+  }
+  protected class ContinuedS (next :State) extends State(next) {
+    override def show = "ContinuedS"
+  }
+  protected class CaseS (next :State) extends State(next) {
+    override def show = "CaseS"
+  }
+  protected class SingleBlockS (token :String, col :Int, next :State) extends State(next) {
+    def expectsPair (line :LineV) = token match {
+      // if our if or else if is followed by an else on the same line, we're already paired
+      case "if" | "else if" => line.lastIndexOf(elseM) match {
+        case -1 => true // no else, we expect one
+        case ii => ii == line.lastIndexOf(elseIfM) // the else we saw was actually an else if
+      }
+      case "do" => line.indexOf(whileM) == -1
+      case _ => false
+    }
+    def lacksExpr = token == "else" || token == "do"
+    // if the single-block state is on the top of the stack, then we're in the line immediately
+    // following the single-block statement, so we want to indent
+    override def indent (config :Config, top :Boolean) =
+      (if (top) indentWidth(config) else 0) + next.indent(config)
+    override def show = s"SingleBlockS($token, $col)"
+  }
+
+  private val caseArrowM = Matcher.regexp("""case\s.*=>""")
+  private val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
+  private val singleLineBlockM = Matcher.regexp("""(if|else if|else|while)\b""")
+
+  private val bcOpenM = Matcher.exact("/*")
+  private val bcCloseM = Matcher.exact("*/")
+  private val firstLineDocM = Matcher.regexp("/\\*\\*\\s*\\S+")
+
+  private val elseIfM = Matcher.regexp("""\belse\s+if\b""")
+  private val elseM = Matcher.regexp("""\belse\b""")
+  private val whileM = Matcher.regexp("""\bwhile\b""")
 }
