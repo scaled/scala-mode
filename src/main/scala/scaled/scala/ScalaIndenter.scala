@@ -84,16 +84,22 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
         opensSLB = false
       }
 
-      // determine (heuristically) whether this line appears to be a complete statement
-      val isContinued = (last >= 0) && contChars.indexOf(line.charAt(last)) >= 0
-      val isComplete = !(isContinued || slbExpectsPair || end.isInstanceOf[BlockS])
+      // if this line is blank or contains only comments; do not mess with our "is continued or
+      // not" state; wait until we get to a line with something actually on it
+      if (line.synIndexOf(s => !s.isComment, first) == -1) end
+      else {
+        // determine (heuristically) whether this line appears to be a complete statement
+        val isContinued = (last >= 0) && contChars.indexOf(line.charAt(last)) >= 0
+        val isComplete = !(isContinued || slbExpectsPair ||
+                           end.isInstanceOf[BlockS] || end.isInstanceOf[ExprS])
 
-      // if we appear to be a complete statement, pop any continued statement state off the stack
-      if (isComplete) end.popIf(_.isInstanceOf[ContinuedS])
-      // if we're not already a continued statement, we may need to start being so
-      else if (isContinued) new ContinuedS(end.popIf(_.isInstanceOf[ContinuedS]))
-      // otherwise stick with what we have
-      else end
+        // if we appear to be a complete statement, pop any continued statement state off the stack
+        if (isComplete) end.popIf(_.isInstanceOf[ContinuedS])
+        // if we're not already a continued statement, we may need to start being so
+        else if (isContinued) new ContinuedS(end.popIf(_.isInstanceOf[ContinuedS]))
+        // otherwise stick with what we have
+        else end
+      }
     }
 
     override def openBlock (line :LineV, open :Char, close :Char, col :Int, state :State) :State = {
@@ -113,9 +119,9 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
       super.openBlock(line, open, close, col, top)
     }
     override def closeBlock (line :LineV, close :Char, col :Int, state :State) :State = {
-      // if we're closing the expression block that goes along with our SLB, note the close column
+      // if we're closing the bracketed expr that goes along with our SLB, note the close column
       if (opensSLB) state match {
-        case bs :BlockS if (bs.col == slbExprOpen) => slbExprClose = col
+        case es :ExprS if (es.col == slbExprOpen) => slbExprClose = col
         case _ => // ignore
       }
       super.closeBlock(line, close, col, state)
