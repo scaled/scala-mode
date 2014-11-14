@@ -54,7 +54,7 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
         nstate
       }
       // if this line opens a block or doc comment, push a state for it
-      else if (line.matches(bcOpenM, first)) {
+      else if (countComments(line, first) > 0) {
         // if this is a doc comment which is followed by non-whitespace, then indent to match the
         // second star rather than the first
         val col = if (line.matches(firstLineDocM, first)) 2 else 1
@@ -73,7 +73,7 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
     override def adjustEnd (line :LineV, first :Int, last :Int, start :State, cur :State) :State = {
       var end = cur
       // if this line closes a doc/block comment, pop our comment state from the stack
-      if (line.indexOf(bcCloseM, 0) >= 0) end = end.popIf(_.isInstanceOf[CommentS])
+      if (countComments(line, 0) < 0) end = end.popIf(_.isInstanceOf[CommentS])
 
       // if the last non-ws-non-comment char is beyond our SLB condition expression then pop the
       // SLB state because the "body" was on the same line (this is normally done when we see any
@@ -156,8 +156,6 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
   private val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
   private val singleLineBlockM = Matcher.regexp("""(if|else if|else|while)\b""")
 
-  private val bcOpenM = Matcher.exact("/*")
-  private val bcCloseM = Matcher.exact("*/")
   private val firstLineDocM = Matcher.regexp("/\\*\\*\\s*\\S+")
 
   private val elseIfM = Matcher.regexp("""\belse\s+if\b""")
