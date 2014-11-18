@@ -37,11 +37,12 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
       // if we're looking at an SLB, push a state for it
       opensSLB = line.matches(singleLineBlockM, first)
       if (opensSLB) {
-        val nstate = new SingleBlockS(singleLineBlockM.group(1), first, start)
+        val token = singleLineBlockM.group(1)
+        val nstate = new SingleBlockS(token, first, start)
         // if this SLB has no associated expression (else or a do); set the expression open/close
-        // column to the start of the block so that the "pop on later block" code works properly
+        // column to the end of the token so that the "pop on later block" code works properly
         if (nstate.lacksExpr) {
-          slbExprOpen = first ; slbExprClose = first
+          slbExprOpen = first+token.length ; slbExprClose = slbExprOpen
         }
         // if this is an 'if' or 'else if', or a 'do', we want to know whether or not to expect to
         // see a subsequent 'else' or 'while' so that we can determine if this statement should
@@ -94,7 +95,13 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
                            end.isInstanceOf[BlockS] || end.isInstanceOf[ExprS])
 
         // if we appear to be a complete statement, pop any continued statement state off the stack
-        if (isComplete) end.popIf(_.isInstanceOf[ContinuedS])
+        if (isComplete) {
+          end = end.popIf(_.isInstanceOf[ContinuedS])
+          // if we didn't just open an SLB and we're a complete statement, then pop any SLB because
+          // this was the single line body of our single line block
+          if (!opensSLB) end.popIf(_.isInstanceOf[SingleBlockS])
+          else end
+        }
         // if we're not already a continued statement, we may need to start being so
         else if (isContinued) new ContinuedS(end.popIf(_.isInstanceOf[ContinuedS]))
         // otherwise stick with what we have
