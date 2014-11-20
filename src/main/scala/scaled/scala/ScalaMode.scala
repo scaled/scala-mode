@@ -45,7 +45,7 @@ object ScalaConfig extends Config.Defs {
     syntaxer("string", Syntax.StringLiteral)
   )
 
-  val grammars = reloadable(Seq("Scala.ndf"))(Grammar.parseNDFs)
+  val grammars = resource("Scala.ndf")(Grammar.parseNDFs)
 }
 
 @Major(name="scala",
