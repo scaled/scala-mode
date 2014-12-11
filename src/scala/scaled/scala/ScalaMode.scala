@@ -7,6 +7,7 @@ package scaled.scala
 import scaled._
 import scaled.code.{CodeConfig, Commenter}
 import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
+import scaled.util.Paragrapher
 
 object ScalaConfig extends Config.Defs {
   import CodeConfig._
@@ -42,7 +43,8 @@ object ScalaConfig extends Config.Defs {
     syntaxer("comment.line", Syntax.LineComment),
     syntaxer("comment.block", Syntax.DocComment),
     syntaxer("constant", Syntax.OtherLiteral),
-    syntaxer("string", Syntax.StringLiteral)
+    syntaxer("string.quoted.triple", Syntax.HereDocLiteral),
+    syntaxer("string.quoted.double", Syntax.StringLiteral)
   )
 
   val grammars = resource("Scala.ndf")(Grammar.parseNDFs)
@@ -56,6 +58,7 @@ object ScalaConfig extends Config.Defs {
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   import CodeConfig._
   import scaled.util.Chars._
+  import Syntax.{HereDocLiteral => HD}
 
   override def configDefs = ScalaConfig :: super.configDefs
 
@@ -63,7 +66,19 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override def effacers = ScalaConfig.effacers
   override def syntaxers = ScalaConfig.syntaxers
 
+  override def mkParagrapher (syntax :Syntax) =
+    if (syntax != HD) super.mkParagrapher(syntax)
+    else new Paragrapher(syntax, buffer) {
+      override def isDelim (row :Int) = super.isDelim(row) || {
+        val ln = line(row)
+        (ln.syntaxAt(0) != HD) || (ln.syntaxAt(ln.length-1) != HD)
+      }
+    }
+
   override protected def createIndenter = new ScalaIndenter(buffer, config)
+
+  override protected def canAutoFill (p :Loc) :Boolean =
+    super.canAutoFill(p) || (buffer.syntaxNear(p) == HD)
 
   override val commenter :ScalaCommenter = new ScalaCommenter() {
     // the scala grammar marks all whitespace leading up to the open doc in comment style, so we
