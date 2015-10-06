@@ -6,3 +6,4 @@ descrip: Provides language support for Scala.
 license: New BSD
  scopts: -deprecation -feature
  depend: git:https://github.com/scaled/java-mode.git
+ module: test
