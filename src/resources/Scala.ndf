@@ -29,9 +29,9 @@ repository:
    caps: 0=punctuation.definition.comment.scala
   multi:
    name: comment.block.documentation.scala
-   begin: (^\s*)?/\*\*
+   begin: /\*\*
    bcaps: 0=punctuation.definition.comment.scala
-   end: \*/(\s*\n)?
+   end: \*/
    ecaps: 0=punctuation.definition.comment.scala
    patterns:
     single:
