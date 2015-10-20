@@ -85,6 +85,15 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
         opensSLB = false
       }
 
+      // if the top of the stack is a BlockS but the end of the line is => then we're in a lambda
+      // and need to adjust the BlockS to let it know that it actually should trigger indent
+      if (end.isInstanceOf[BlockS]) {
+        val arrowStart = last+1-lambdaArrowM.show.length
+        if (arrowStart >= 0 && line.matches(lambdaArrowM, arrowStart)) {
+          end = end.asInstanceOf[BlockS].makeEOL
+        }
+      }
+
       // if this line is blank or contains only comments; do not mess with our "is continued or
       // not" state; wait until we get to a line with something actually on it
       if (line.synIndexOf(s => !s.isComment, first) == -1) end
@@ -166,10 +175,11 @@ class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg
   }
 
   private val caseArrowM = Matcher.regexp("""case\s.*=>""")
+  private val lambdaArrowM = Matcher.exact(" =>")
   private val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
   private val singleLineBlockM = Matcher.regexp("""(if|else if|else|while)\b""")
 
-  private val firstLineDocM = Matcher.regexp("/\\*\\*\\s*\\S+")
+  private val firstLineDocM = Matcher.regexp("""/\*\*\s*\S+""")
 
   private val elseIfM = Matcher.regexp("""\belse\s+if\b""")
   private val elseM = Matcher.regexp("""\belse\b""")
