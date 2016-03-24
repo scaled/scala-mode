@@ -7,22 +7,22 @@ package scaled.scala
 import scaled._
 import scaled.code.Indenter
 
-class ScalaIndenter (buf :Buffer, cfg :Config) extends Indenter.ByBlock(buf, cfg) {
+class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
   import Indenter._
 
-  override def computeIndent (state :State, base :Int, line :LineV, first :Int) = {
+  override def computeIndent (state :State, base :Int, info :Info) = {
     // bump extends/with in two indentation levels
-    if (line.matches(extendsOrWithM, first)) base + 2*indentWidth
+    if (info.startsWith(extendsOrWithM)) base + 2*indentWidth
     // if we're in a faux case block...
     else if (state.isInstanceOf[CaseS]) {
       // ignore the block indent for subsequent case statements
-      if (line.matches(caseArrowM, first)) base - indentWidth
+      if (info.startsWith(caseArrowM)) base - indentWidth
       // ignore the block indent for the final close bracket
-      else if (line.charAt(first) == '}') base - 2*indentWidth
+      else if (info.firstChar == '}') base - 2*indentWidth
       // otherwise stick to business as usual...
-      else super.computeIndent(state, base, line, first)
+      else super.computeIndent(state, base, info)
     }
-    else super.computeIndent(state, base, line, first)
+    else super.computeIndent(state, base, info)
   }
 
   override protected def createStater = new BlockStater() {
