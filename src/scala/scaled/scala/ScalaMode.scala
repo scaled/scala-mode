@@ -80,27 +80,23 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   override protected def canAutoFill (p :Loc) :Boolean =
     super.canAutoFill(p) || (buffer.syntaxNear(p) == HD)
 
-  override val commenter :ScalaCommenter = new ScalaCommenter() {
+  override val commenter = new Commenter() {
+    override def linePrefix  = "//"
+    override def blockOpen   = "/*"
+    override def blockPrefix = "*"
+    override def blockClose  = "*/"
+    override def docOpen     = "/**"
+
+    override def mkParagrapher (syn :Syntax, buf :Buffer) = new DocCommentParagrapher(syn, buf)
+
     // the scala grammar marks all whitespace leading up to the open doc in comment style, so we
     // have to hack this predicate a bit
-    override def inDoc (buffer :BufferV, p :Loc) :Boolean = {
-      super.inDoc(buffer, p) && {
+    override def inDocComment (buffer :BufferV, p :Loc) :Boolean = {
+      super.inDocComment(buffer, p) && {
         val line = buffer.line(p)
-        (line.indexOf(openDocM, p.col) == -1)
+        (line.indexOf(docOpenM, p.col) == -1)
       }
     }
-  }
-
-  //
-  // FNs
-
-  override def electricNewline () {
-    // shenanigans to determine whether we should auto-insert the doc prefix (* )
-    if (commenter.inDoc(buffer, view.point())) {
-      newline()
-      view.point() = commenter.insertDocPre(buffer, view.point())
-      reindentAtPoint()
-    } else super.electricNewline()
   }
 
   // TODO: more things!
