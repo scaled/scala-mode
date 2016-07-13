@@ -6,11 +6,11 @@ package scaled.scala
 
 import codex.model.{Def, Kind}
 import scaled._
-import scaled.project.CodexMinorMode
+import scaled.project.{CodexMinorMode, Project}
 import scaled.util.Errors
 
 @Minor(name="codex-scala",
-       tags=Array("scala"),
+       tags=Array("scala"), stateTypes=Array(classOf[Project]),
        desc="A minor mode which enhances Scala mode with Codex information.")
 class CodexScalaMode (env :Env) extends CodexMinorMode(env) {
 
