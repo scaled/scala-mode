@@ -39,7 +39,11 @@ repository:
      pattern: (@\w+\s)
     single:
      name: keyword.other.documentation.scaladoc.link.scala
-     pattern: \{@link\s+[^\}]*\}
+     pattern: \{@(\w+)\s+[^\}]*\}
+    single:
+     name: meta.directive.backtick.scaladoc
+     pattern: `[^`]*`
+     caps: 0=constant.other.documentation.directive.value.scaladoc
  constants:
   single:
    name: constant.language.scala
