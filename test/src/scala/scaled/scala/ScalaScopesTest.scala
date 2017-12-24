@@ -13,6 +13,11 @@ import scaled.impl.BufferImpl
 
 class ScalaScopesTest {
 
+  // @Test def dumpGrammar () {
+  //   val plugin = new ScalaGrammarPlugin()
+  //   plugin.grammar.print(System.out)
+  // }
+
   val testScalaCode = Seq(
     //                1         2         3         4         5         6         7         8
     //      012345678901234567890123456789012345678901234567890123456789012345678901234567890123456
@@ -36,16 +41,11 @@ class ScalaScopesTest {
     /*17*/ "  def test (count :Int) :Int = count + 5",
     /*19*/ "}").mkString("\n")
 
-  def scala = getClass.getClassLoader.getResourceAsStream("Scala.ndf")
-  val grammars = Grammar.Set(Grammar.parseNDF(scala))
-
-  // @Test def dumpGrammar () {
-  //   Grammar.parseNDF(scala).print(System.out)
-  // }
-
   @Test def testStylesLink () {
     val buffer = BufferImpl(new TextStore("Test.scala", "", testScalaCode))
-    val scoper = new Scoper(grammars, buffer, List(new Selector.Processor(ScalaConfig.effacers)))
+    val plugin = new ScalaGrammarPlugin()
+    val scoper = Grammar.testScoper(Seq(plugin.grammar("source.scala")), buffer,
+                                    List(new Selector.Processor(plugin.effacers)))
     scoper.rethinkBuffer()
 
     // println(scoper.showMatchers(Set("#code", "#class")))

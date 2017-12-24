@@ -6,49 +6,8 @@ package scaled.scala
 
 import scaled._
 import scaled.code.{CodeConfig, Commenter}
-import scaled.grammar.{Grammar, GrammarConfig, GrammarCodeMode}
+import scaled.grammar.GrammarCodeMode
 import scaled.util.Paragrapher
-
-object ScalaConfig extends Config.Defs {
-  import CodeConfig._
-  import GrammarConfig._
-
-  // map TextMate grammar scopes to Scaled style definitions
-  val effacers = List(
-    effacer("comment.line", commentStyle),
-    effacer("comment.block", docStyle),
-    effacer("constant", constantStyle),
-    effacer("invalid", invalidStyle),
-    effacer("keyword", keywordStyle),
-    effacer("string", stringStyle),
-
-    effacer("entity.name.package", moduleStyle),
-    effacer("entity.name.class", typeStyle),
-    effacer("entity.other.inherited-class", typeStyle),
-    effacer("entity.name.function", functionStyle),
-    effacer("entity.name.val-declaration", variableStyle),
-
-    effacer("storage.modifier", keywordStyle),
-    effacer("storage.type.primitive", typeStyle),
-
-    effacer("variable.package", moduleStyle),
-    effacer("variable.import", typeStyle),
-    effacer("variable.language", constantStyle),
-    // effacer("variable.parameter", variableStyle), // leave params white
-    effacer("variable.other.type", variableStyle)
-  )
-
-  // map TextMate grammar scopes to Scaled syntax definitions
-  val syntaxers = List(
-    syntaxer("comment.line", Syntax.LineComment),
-    syntaxer("comment.block", Syntax.DocComment),
-    syntaxer("constant", Syntax.OtherLiteral),
-    syntaxer("string.quoted.triple", Syntax.HereDocLiteral),
-    syntaxer("string.quoted.double", Syntax.StringLiteral)
-  )
-
-  val grammars = resource("Scala.ndf")(Grammar.parseNDFs)
-}
 
 @Major(name="scala",
        tags=Array("code", "project", "scala"),
@@ -60,11 +19,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   import scaled.util.Chars._
   import Syntax.{HereDocLiteral => HD}
 
-  override def configDefs = ScalaConfig :: super.configDefs
-
-  override def grammars = ScalaConfig.grammars.get
-  override def effacers = ScalaConfig.effacers
-  override def syntaxers = ScalaConfig.syntaxers
+  override def langScope = "source.scala"
 
   override def mkParagrapher (syntax :Syntax) =
     if (syntax != HD) super.mkParagrapher(syntax)
