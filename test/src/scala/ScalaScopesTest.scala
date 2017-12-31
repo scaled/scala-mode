@@ -1,14 +1,13 @@
 //
-// Scaled Scala Mode - a Scaled major mode for editing Scala code
-// http://github.com/scaled/scala-mode/blob/master/LICENSE
+// Scaled Scala Mode - support for editing Scala code
+// https://github.com/scaled/scala-mode/blob/master/LICENSE
 
-package scaled.scala
+package scaled.code
 
 import org.junit.Assert._
 import org.junit._
 import scaled._
 import scaled.grammar._
-import scaled.code.CodeConfig
 import scaled.impl.BufferImpl
 
 class ScalaScopesTest {

@@ -1,11 +1,10 @@
 //
-// Scaled Scala Mode - a Scaled major mode for editing Scala code
-// http://github.com/scaled/scala-mode/blob/master/LICENSE
+// Scaled Scala Mode - support for editing Scala code
+// https://github.com/scaled/scala-mode/blob/master/LICENSE
 
-package scaled.scala
+package scaled.code
 
 import scaled._
-import scaled.code.Indenter
 
 class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
   import Indenter._
