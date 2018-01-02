@@ -31,7 +31,7 @@ object DottyLangProject {
     // Maven on demand" support to download the appropriate artifact based on what's in the
     // dotty-ide.json file and run that version of the compiler
     val pkgSvc = project.metaSvc.service[PackageService]
-    val pkgSource = "git:https://github.com/scaled/scala-project.git"
+    val pkgSource = "git:https://github.com/scaled/scala-mode.git"
     val pkgCP = pkgSvc.classpath(pkgSource).mkString(System.getProperty("path.separator"))
     val langMain = "dotty.tools.languageserver.Main"
     Seq("java", "-classpath", pkgCP, langMain, "-stdio")
