@@ -10,7 +10,7 @@ import scaled.util.Paragrapher
 
 @Major(name="scala",
        tags=Array("code", "project", "scala"),
-       pats=Array(".*\\.scala"),
+       pats=Array(".*\\.scala", ".*\\.sbt"),
        ints=Array("scala"),
        desc="A major editing mode for the Scala language.")
 class ScalaMode (env :Env) extends GrammarCodeMode(env) {
