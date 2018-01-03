@@ -9,7 +9,7 @@ import org.eclipse.lsp4j._
 import scaled._
 import scaled.util.{Close, Filler}
 
-object DottyLangProject {
+object Dotty {
 
   val ProjectFile = ".dotty-ide.json"
 
@@ -22,10 +22,10 @@ object DottyLangProject {
   class DottyLangPlugin extends LangPlugin {
     def suffs (root :Path) = Set("scala")
     def canActivate (root :Path) = Files.exists(root.resolve(ProjectFile))
-    def createClient (project :Project) = Future.success(new DottyLangClient(project))
+    def createClient (proj :Project) = Future.success(new DottyLangClient(proj, serverCmd(proj)))
   }
 
-  def serverCmd (project :Project) = {
+  private def serverCmd (project :Project) = {
     // TEMP: we hardcode the version of the dotty compiler for now and run it by getting the
     // classpath for this scala-project package; eventually we'll use our "download stuff from
     // Maven on demand" support to download the appropriate artifact based on what's in the
@@ -38,7 +38,7 @@ object DottyLangProject {
   }
 }
 
-class DottyLangClient (p :Project) extends LangClient(p, DottyLangProject.serverCmd(p)) {
+class DottyLangClient (p :Project, cmd :Seq[String]) extends LangClient(p, cmd) {
 
   override def name = "Dotty"
 
@@ -80,20 +80,13 @@ class DottyLangClient (p :Project) extends LangClient(p, DottyLangProject.server
   }
 }
 
-class DottyLangProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProject(ps, r) {
+class DottyLangProject (ps :ProjectSpace, r :Project.Root) extends Project(ps, r) {
 
   override protected def computeMeta (oldMeta :Project.Meta) = try {
-    val sb = FileProject.stockIgnores
-    // meta.get.ignoreNames.foreach { sb += FileProject.ignoreName(_) }
-    // meta.get.ignoreRegexes.foreach { sb += FileProject.ignoreRegex(_) }
-    ignores() = sb
-
+    val sourceDirs = ide.get.sourceDirectories.map(rootPath.resolve(_)).toSeq
+    addComponent(classOf[Sources], new Sources(sourceDirs))
     addComponent(classOf[Compiler], new LangCompiler(this))
-
-    Future.success(oldMeta.copy(
-      name = root.path.getFileName.toString,
-      sourceDirs = ide.get.sourceDirectories.map(rootPath.resolve(_)).toSeq
-    ))
+    Future.success(oldMeta.copy(name = root.path.getFileName.toString()))
   } catch {
     case err :Throwable => Future.failure(err)
   }
@@ -129,5 +122,5 @@ class DottyLangProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileP
   }
 
   private def rootPath = root.path
-  private def configFile = rootPath.resolve(DottyLangProject.ProjectFile)
+  private def configFile = rootPath.resolve(Dotty.ProjectFile)
 }

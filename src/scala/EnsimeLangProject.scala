@@ -143,26 +143,22 @@ object EnsimeLangProject {
   }
 }
 
-class EnsimeLangProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProject(ps, r) {
+class EnsimeLangProject (ps :ProjectSpace, r :Project.Root) extends Project(ps, r) {
   import EnsimeLangProject._
   import EnsimeConfig._
 
   override protected def computeMeta (oldMeta :Project.Meta) = try {
-    val sb = FileProject.stockIgnores
-    // meta.get.ignoreNames.foreach { sb += FileProject.ignoreName(_) }
-    // meta.get.ignoreRegexes.foreach { sb += FileProject.ignoreRegex(_) }
-    ignores() = sb
-
     addComponent(classOf[Compiler], new LangCompiler(this))
 
     val config = ensimeConfig.get
     val projs = getList(config.get(":projects")).map(toMap)
     val main = projs.head
 
-    Future.success(oldMeta.copy(
-      name = config.get(":name").flatMap(getString) || "<missing name>",
-      sourceDirs = getList(main.get(":sources")).flatMap(getString).map(dir => Paths.get(dir))
-    ))
+    val sourceDirs = getList(main.get(":sources")).flatMap(getString).map(dir => Paths.get(dir));
+    addComponent(classOf[Sources], new Sources(sourceDirs))
+
+    val name = config.get(":name").flatMap(getString) || "<missing name>";
+    Future.success(oldMeta.copy(name = name))
   } catch {
     case err :Throwable => Future.failure(err)
   }

@@ -46,7 +46,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
   }
 
   protected def compile (buffer :Buffer, file :Option[Path]) =
-    compile(buffer, file, proj.sourceDirs, java.buildClasspath, java.outputDir)
+    compile(buffer, file, proj.sources.dirs, java.buildClasspath, java.outputDir)
 
   /** A hook called just before we initiate compilation. */
   protected def willCompile () {}
