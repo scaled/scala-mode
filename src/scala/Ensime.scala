@@ -88,85 +88,81 @@ object EnsimeConfig {
     if (map.isEmpty) println(s"$path does not appear to contain sexp-map data?")
     map
   }
-
-  def main (args :Array[String]) {
-    val map = parseConfig(Paths.get(args(0)))
-    println("ensime-server-jars: " +  map.get(":ensime-server-jars"))
-    println("scala-compiler-jars: " +  map.get(":scala-compiler-jars"))
-    println("name: " +  map.get(":name"))
-  }
 }
 
-object EnsimeLangClient {
+object Ensime {
   import EnsimeConfig._
 
-  @Plugin(tag="langserver")
+  @Plugin(tag="project-root")
+  class EnsimeRootPlugin extends RootPlugin.File(EnsimeConfig.DotEnsime)
+
+  @Plugin(tag="project-resolver")
+  class EnsimeResolverPlugin extends ResolverPlugin {
+    override def addComponents (project :Project) {
+      val configFile = project.root.path.resolve(DotEnsime)
+      if (Files.exists(configFile)) {
+        val config = parseConfig(configFile)
+        val scalaVers = config.get(":scala-version").flatMap(getString) || "2.12.0"
+
+        // TODO: handle more than just main project
+        val projs = getList(config.get(":projects")).map(toMap)
+        val main = projs.head
+
+        def getStrings (key :String) = getList(main.get(key)).flatMap(getString)
+        def getPaths (key :String) = getStrings(key).map(dir => Paths.get(dir))
+        val sourceDirs = getPaths(":sources")
+        project.addComponent(classOf[Sources], new Sources(sourceDirs))
+
+        val java = new JavaComponent(project);
+        val targets = getPaths(":targets")
+        java.javaMetaV() = new JavaMeta(
+          targets,
+          targets.head,
+          targets ++ getPaths(":library-jars"),
+          targets ++ getPaths(":library-jars")
+        )
+        project.addComponent(classOf[JavaComponent], java)
+
+        project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
+          override def javacOpts = getStrings(":javac-options")
+          override def scalacOpts = getStrings(":scalac-options")
+          override def scalacVers = scalaVers
+          // override protected def willCompile () = copyResources()
+        })
+
+        val name = config.get(":name").flatMap(getString) || "<missing name>";
+        val oldMeta = project.metaV()
+        project.metaV() = oldMeta.copy(name = name)
+      }
+    }
+  }
+
+  // TEMP: disabled until Ensime lang server is less "experimental"
+  // @Plugin(tag="langserver")
   class EnsimeLangPlugin extends LangPlugin {
     def suffs (root :Path) = Set("scala")
     def canActivate (root :Path) = Files.exists(root.resolve(DotEnsime))
     def createClient (proj :Project) = Future.success(new EnsimeLangClient(proj, serverCmd(proj)))
   }
 
-  def serverCmd (project :Project) = {
+  private def serverCmd (project :Project) = {
     val rootPath = project.root.path
-    val configFile = rootPath.resolve(DotEnsime)
-    val config = parseConfig(configFile)
+    val config = parseConfig(rootPath.resolve(DotEnsime))
 
     val compilerJars = getList(config.get(":scala-compiler-jars")).flatMap(getString)
     val serverJars = getList(config.get(":ensime-server-jars")).flatMap(getString)
     val pathSep = System.getProperty("path.separator")
     val classpath = serverJars.mkString(pathSep) + pathSep + compilerJars.mkString(pathSep)
 
-    val cmd = Seq("java",
+    Seq("java",
         "-classpath", classpath,
         "-Dlsp.workspace=" + rootPath,
         // "-Dlsp.logLevel=" + logLevel,
         "org.ensime.server.Server", "--lsp")
-
-    import java.nio.file.StandardOpenOption._
-    Files.write(Paths.get("ensime-ls.sh"), cmd, CREATE, TRUNCATE_EXISTING, WRITE);
-
-    cmd
   }
 }
 
 class EnsimeLangClient (p :Project, cmd :Seq[String]) extends LangClient(p, cmd) {
 
   override def name = "Ensime"
-}
-
-object EnsimeLangProject {
-
-  @Plugin(tag="project-finder")
-  class FinderPlugin extends ProjectFinderPlugin("langserver", true, classOf[EnsimeLangProject]) {
-    def checkRoot (root :Path) :Int = if (exists(root, EnsimeConfig.DotEnsime)) 1 else -1
-  }
-}
-
-class EnsimeLangProject (ps :ProjectSpace, r :Project.Root) extends Project(ps, r) {
-  import EnsimeLangProject._
-  import EnsimeConfig._
-
-  override protected def computeMeta (oldMeta :Project.Meta) = try {
-    addComponent(classOf[Compiler], new LangCompiler(this))
-
-    val config = ensimeConfig.get
-    val projs = getList(config.get(":projects")).map(toMap)
-    val main = projs.head
-
-    val sourceDirs = getList(main.get(":sources")).flatMap(getString).map(dir => Paths.get(dir));
-    addComponent(classOf[Sources], new Sources(sourceDirs))
-
-    val name = config.get(":name").flatMap(getString) || "<missing name>";
-    Future.success(oldMeta.copy(name = name))
-  } catch {
-    case err :Throwable => Future.failure(err)
-  }
-
-  private[this] val ensimeConfig = new Close.Ref[SMap](toClose) {
-    protected def create = parseConfig(configFile)
-  }
-
-  private def rootPath = root.path
-  private def configFile = rootPath.resolve(DotEnsime)
 }

@@ -17,7 +17,7 @@ class ScalaExtractorPlugin extends ExtractorPlugin {
   // only return an extractor if our project has valid dependencies (it'll at least need a
   // scala-library dependency otherwise we're going to be hosed)
   override def extractor (project :Project, suff :String) =
-    if (project.depends.isEmpty) None else Some(new ScalaExtractor() {
+    if (project.depends.ids.isEmpty) None else Some(new ScalaExtractor() {
       override def compilerArgs = exScalacOpts(project)
       override def classpath = exClasspath(project)
       override def log (msg :String) = project.log(msg)

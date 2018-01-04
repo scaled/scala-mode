@@ -10,13 +10,38 @@ import scaled._
 import scaled.util.{Close, Filler}
 
 object Dotty {
+  import spray.json._
 
   val ProjectFile = ".dotty-ide.json"
 
-  @Plugin(tag="project-finder")
-  class FinderPlugin extends ProjectFinderPlugin("langserver", true, classOf[DottyLangProject]) {
-    def checkRoot (root :Path) :Int = if (exists(root, ProjectFile)) 1 else -1
+  case class DottyModule (
+    id :String,
+    compilerVersion :String,
+    compilerArguments :Seq[String],
+    sourceDirectories :Seq[String],
+    dependencyClasspath :Seq[String],
+    classDirectory :String
+  )
+
+  object DottyIDEProtocol extends DefaultJsonProtocol {
+    implicit def scaledSeqFormat[T :JsonFormat] = new RootJsonFormat[Seq[T]] {
+      def write(seq: Seq[T]) = JsArray(seq.map(_.toJson).toScala.toVector)
+      def read(value: JsValue): Seq[T] = value match {
+        case JsArray(elements) => Seq() ++ Iterable.view(elements.map(_.convertTo[T]))
+        case x => deserializationError("Expected List as JsArray, but got " + x)
+      }
+    }
+    implicit val dottyModuleFormat = jsonFormat6(DottyModule)
   }
+
+  def parseDottyConfig (path :Path) :Seq[DottyModule] = {
+    import DottyIDEProtocol._
+    val bytes = Files.readAllBytes(path)
+    Seq.from(JsonParser(ParserInput(bytes)).convertTo[Array[DottyModule]])
+  }
+
+  @Plugin(tag="project-root")
+  class DottyRootPlugin extends RootPlugin.File(ProjectFile)
 
   @Plugin(tag="langserver")
   class DottyLangPlugin extends LangPlugin {
@@ -35,6 +60,21 @@ object Dotty {
     val pkgCP = pkgSvc.classpath(pkgSource).mkString(System.getProperty("path.separator"))
     val langMain = "dotty.tools.languageserver.Main"
     Seq("java", "-classpath", pkgCP, langMain, "-stdio")
+  }
+
+  @Plugin(tag="project-resolver")
+  class DottyResolverPlugin extends ResolverPlugin {
+    override def addComponents (project :Project) {
+      val rootPath = project.root.path
+      val configFile = rootPath.resolve(ProjectFile)
+      if (Files.exists(configFile)) {
+        val modules = parseDottyConfig(configFile)
+        val main = modules(0) // TODO: handle test project also
+
+        val sourceDirs = main.sourceDirectories.map(rootPath.resolve(_)).toSeq
+        project.addComponent(classOf[Sources], new Sources(sourceDirs))
+      }
+    }
   }
 }
 
@@ -78,49 +118,4 @@ class DottyLangClient (p :Project, cmd :Seq[String]) extends LangClient(p, cmd) 
     }
     Line(stripQuals(sig))
   }
-}
-
-class DottyLangProject (ps :ProjectSpace, r :Project.Root) extends Project(ps, r) {
-
-  override protected def computeMeta (oldMeta :Project.Meta) = try {
-    val sourceDirs = ide.get.sourceDirectories.map(rootPath.resolve(_)).toSeq
-    addComponent(classOf[Sources], new Sources(sourceDirs))
-    addComponent(classOf[Compiler], new LangCompiler(this))
-    Future.success(oldMeta.copy(name = root.path.getFileName.toString()))
-  } catch {
-    case err :Throwable => Future.failure(err)
-  }
-
-  case class DottyModule (
-    id :String,
-    compilerVersion :String,
-    compilerArguments :Seq[String],
-    sourceDirectories :Seq[String],
-    dependencyClasspath :Seq[String],
-    classDirectory :String
-  )
-
-  private[this] val ide = new Close.Ref[DottyModule](toClose) {
-    import spray.json._
-    object DottyIDEProtocol extends DefaultJsonProtocol {
-      implicit def scaledSeqFormat[T :JsonFormat] = new RootJsonFormat[Seq[T]] {
-        def write(seq: Seq[T]) = JsArray(seq.map(_.toJson).toScala.toVector)
-        def read(value: JsValue): Seq[T] = value match {
-          case JsArray(elements) => Seq() ++ Iterable.view(elements.map(_.convertTo[T]))
-          case x => deserializationError("Expected List as JsArray, but got " + x)
-        }
-      }
-      implicit val dottyModuleFormat = jsonFormat6(DottyModule)
-    }
-
-    import DottyIDEProtocol._
-    protected def create = {
-      val bytes = Files.readAllBytes(configFile)
-      val modules = JsonParser(ParserInput(bytes)).convertTo[Array[DottyModule]]
-      modules(0) // TODO: handle test project also
-    }
-  }
-
-  private def rootPath = root.path
-  private def configFile = rootPath.resolve(Dotty.ProjectFile)
 }
