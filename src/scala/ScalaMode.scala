@@ -4,9 +4,11 @@
 
 package scaled.code
 
+import codex.model.Kind
 import scaled._
 import scaled.grammar.GrammarCodeMode
-import scaled.util.Paragrapher
+import scaled.project.Project
+import scaled.util.{Chars, Paragrapher}
 
 @Major(name="scala",
        tags=Array("code", "project", "scala"),
@@ -19,6 +21,9 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   import Syntax.{HereDocLiteral => HD}
 
   override def langScope = "source.scala"
+
+  override def keymap = super.keymap.
+    bind("import-type", "C-c C-i");
 
   override def mkParagrapher (syntax :Syntax) =
     if (syntax != HD) super.mkParagrapher(syntax)
@@ -53,5 +58,15 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
     }
   }
 
-  // TODO: more things!
+  @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
+  def importType () {
+    val analyzer = Project(buffer).analyzer
+    window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
+                     analyzer.symbolCompleter(Some(Kind.TYPE))).onSuccess(sym => {
+      ScalaCode.insertImport(buffer, analyzer.fqName(sym))
+    });
+  }
+
+  /** Returns the "word" at the specified location in the buffer. */
+  private def wordAt (loc :Loc) = buffer.regionAt(loc, Chars.Word).map(_.asString).mkString
 }
