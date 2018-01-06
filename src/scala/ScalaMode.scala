@@ -7,7 +7,7 @@ package scaled.code
 import codex.model.Kind
 import scaled._
 import scaled.grammar.GrammarCodeMode
-import scaled.project.Project
+import scaled.project.Analyzer
 import scaled.util.{Chars, Paragrapher}
 
 @Major(name="scala",
@@ -60,7 +60,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
 
   @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
   def importType () {
-    val analyzer = Project(buffer).analyzer
+    val analyzer = Analyzer(buffer)
     window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
                      analyzer.symbolCompleter(Some(Kind.TYPE))).onSuccess(sym => {
       ScalaCode.insertImport(buffer, analyzer.fqName(sym))
