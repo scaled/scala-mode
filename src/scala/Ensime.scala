@@ -6,6 +6,7 @@ package scaled.project
 
 import java.nio.file.{Files, Path, Paths}
 import scaled._
+import scaled.pacman.JDK
 import scaled.util.Close
 
 object EnsimeConfig {
@@ -129,6 +130,14 @@ object Ensime {
           override def scalacVers = scalaVers
           // override protected def willCompile () = copyResources()
         })
+
+        // if the project has no depends, add a simple depends with the JDK, better than nothing
+        if (!project.hasComponent(classOf[Depends])) {
+          project.addComponent(classOf[Depends], new Depends(project) {
+            import Project._
+            override def ids = Seq(PlatformId(JavaPlatform, JDK.thisJDK.majorVersion))
+          })
+        }
 
         val name = config.get(":name").flatMap(getString) || "<missing name>";
         val oldMeta = project.metaV()
