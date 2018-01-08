@@ -47,14 +47,21 @@ object EnsimeConfig {
       buffer.append(first)
       var done = false
       do {
-        val c = in.read.toChar
-        if (c == ' ' || c == '\n') done = true
+        val i = in.read ; val c = i.toChar
+        if (c == ' ' || c == '\n' || i < 0) done = true
         else buffer.append(c)
       } while (!done)
       SAtom(buffer.toString)
     }
 
+    def parseComment :SExp = in.read.toChar match {
+      case '\n' => parseSExp
+      case -1   => SAtom("")
+      case _    => parseComment
+    }
+
     def parseSExp :SExp = in.read.toChar match {
+      case ';'      => parseComment
       case '('      => parseSList(Seq.builder())
       case ')'      => SEnd
       case '"'      => parseSString
@@ -88,6 +95,10 @@ object EnsimeConfig {
     val map = toMap(parseSExp(path))
     if (map.isEmpty) println(s"$path does not appear to contain sexp-map data?")
     map
+  }
+
+  def main (args :Array[String]) {
+    args foreach { path => println(parseConfig(Paths.get(args(0)))) }
   }
 }
 
