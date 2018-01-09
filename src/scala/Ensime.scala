@@ -4,6 +4,7 @@
 
 package scaled.project
 
+import com.google.common.cache.LoadingCache
 import java.nio.file.{Files, Path, Paths}
 import scaled._
 import scaled.pacman.JDK
@@ -13,16 +14,42 @@ object EnsimeConfig {
 
   val DotEnsime = ".ensime"
 
-  // SExpr parser, because Emacs
-  sealed trait SExp
-  case class SList (elems :Seq[SExp]) extends SExp
-  case class SString (value :String) extends SExp
-  case class SAtom (value :String) extends SExp
-  case object SEnd extends SExp // used during parsing
+  // SExpr AST and parser, because Emacs
+  sealed trait SExp {
+    def asString :Option[String] = None
+    def asList :Seq[SExp] = Seq()
+    def asMap :SMap = Map()
+  }
   type SMap = Map[String,SExp]
+  case class SList (elems :Seq[SExp]) extends SExp {
+    override def asList = elems
+    override def asMap = Map() ++ elems.grouped(2).flatMap {
+      case Seq(SAtom(key), value) => Some(key -> value)
+      case group => println(s"Invalid sexp-map pair: $group") ; None
+    }
+    override def toString = elems.mkString("(", ",", ")")
+  }
+  case class SString (value :String) extends SExp {
+    override def asString = Some(value)
+    override def toString = '"' + value + '"'
+  }
+  case class SAtom (value :String) extends SExp {
+    override def toString = value
+  }
+  case object SEnd extends SExp // used during parsing
 
   def parseSExp (path :Path) :SExp = {
     val in = Files.newBufferedReader(path)
+
+    // hacky way to allow parseSExp to back up when it sees ')'
+    var unread = 0.toChar
+    def read :Char = unread match {
+      case 0 => in.read match {
+        case -1 => throw new IllegalStateException(s"Unexpected EOF")
+        case ic => ic.toChar
+      }
+      case c => try c finally unread = 0.toChar
+    }
 
     def parseSList (accum :Seq.Builder[SExp]) :SList = parseSExp match {
       case SEnd => SList(accum.build)
@@ -33,7 +60,7 @@ object EnsimeConfig {
       val buffer = new java.lang.StringBuilder
       var escape = false ; var done = false
       do {
-        val c = in.read.toChar
+        val c = read
         if (escape) buffer.append(c)
         else if (c == '\\') escape = true
         else if (c == '"') done = true
@@ -47,8 +74,9 @@ object EnsimeConfig {
       buffer.append(first)
       var done = false
       do {
-        val i = in.read ; val c = i.toChar
-        if (c == ' ' || c == '\n' || i < 0) done = true
+        val c = read
+        if (c == ')') { unread = c ; done = true } // oops, back up!
+        else if (c == ' ' || c == '\n') done = true
         else buffer.append(c)
       } while (!done)
       SAtom(buffer.toString)
@@ -60,7 +88,7 @@ object EnsimeConfig {
       case _    => parseComment
     }
 
-    def parseSExp :SExp = in.read.toChar match {
+    def parseSExp :SExp = read match {
       case ';'      => parseComment
       case '('      => parseSList(Seq.builder())
       case ')'      => SEnd
@@ -73,32 +101,37 @@ object EnsimeConfig {
     finally in.close()
   }
 
-  def getString (sexp :SExp) :Option[String] = sexp match {
-    case SString(value) => Some(value)
-    case _ => None
+  abstract class DataConfig (val data :SMap) {
+    def list (key :String) = data.get(key).map(_.asList) || Seq()
+    def string (key :String) = data.get(key).flatMap(_.asString)
+    def strings (key :String) = list(key).flatMap(_.asString)
+    def paths (key :String) = strings(key).map(dir => Paths.get(dir))
   }
 
-  def getList (sexp :Option[SExp]) :Seq[SExp] = sexp match {
-    case Some(SList(exps)) => exps
-    case _ => Seq()
+  class EnsimeId (data :SMap) extends DataConfig(data) {
+    def project = string(":project") || "unknown"
+    def config = string(":config") || "unknown"
+    def module :String = s"$project:$config"
+  }
+  class EnsimeProject (data :SMap) extends DataConfig(data) {
+    val id = new EnsimeId(data.get(":id").map(_.asMap) || Map())
+    def name = if (id.config == "compile") id.project else s"${id.project}-${id.config}"
   }
 
-  def toMap (sexp :SExp) :SMap = sexp match {
-    case SList(exps) => Map() ++ exps.grouped(2).flatMap {
-      case Seq(SAtom(key), value) => Some(key -> value)
-      case group => println(s"Invalid sexp-map pair: $group") ; None
-    }
-    case sexp => Map()
+  class Config (path :Path, data :SMap) extends DataConfig(data) {
+    if (data.isEmpty) println(s"$path does not appear to contain sexp-map data?")
+    val projects = list(":projects").map(pd => new EnsimeProject(pd.asMap))
   }
 
-  def parseConfig (path :Path) :SMap = {
-    val map = toMap(parseSExp(path))
-    if (map.isEmpty) println(s"$path does not appear to contain sexp-map data?")
-    map
-  }
+  /** A cache from `Path` to `Config` for `.ensime` files. */
+  val configCache :LoadingCache[Path,Config] =
+    Mutable.cacheMap(path => new Config(path, parseSExp(path).asMap))
 
   def main (args :Array[String]) {
-    args foreach { path => println(parseConfig(Paths.get(args(0)))) }
+    Seq.from(args) flatMap(path => configCache.get(Paths.get(path)).projects) foreach { proj =>
+      println(proj.name)
+      proj.data foreach { ent => println(s" ${ent._1} $${ent._2}") }
+    }
   }
 }
 
@@ -106,53 +139,98 @@ object Ensime {
   import EnsimeConfig._
 
   @Plugin(tag="project-root")
-  class EnsimeRootPlugin extends RootPlugin.File(EnsimeConfig.DotEnsime)
+  class EnsimeRootPlugin extends RootPlugin.File(EnsimeConfig.DotEnsime) {
+    override protected def createRoot (paths :List[Path], path :Path) = {
+      val sentinel = paths.head
+      val configFile = path.resolve(DotEnsime)
+      val config = configCache.get(configFile)
+      // find the project or subproject that contains the sentinel file
+      config.projects.find(_.paths(":sources").exists(sentinel startsWith _)) match {
+        case Some(proj) => Project.Root(path, proj.id.module)
+        case          _ => Project.Root(path)
+      }
+    }
+  }
+
+  class EnsimeDepends (project :Project, enproj :EnsimeProject) extends Depends(project) {
+    import Project._
+
+    val rootPath = project.root.path
+    val moduleDeps = enproj.list(":depends").map(d => new EnsimeId(d.asMap))
+
+    // if we have no other depends (we're a leave module) add an implicit depend on the JDK
+    // (TODO: would be nice to know which version to use; also implicit dep on scala-library?)
+    lazy val ids = if (moduleDeps.isEmpty) Seq(PlatformId(JavaPlatform, JDK.thisJDK.majorVersion))
+    else {
+      val seen = new java.util.HashSet[Id]()
+      val depIds = Seq.builder[Id]()
+      def add (id :Id) :Unit = if (seen.add(id)) depIds += id
+      for (id <- moduleDeps) add(RootId(rootPath, id.module))
+      for (id <- moduleDeps ;
+           depId <- project.pspace.projectFor(Root(rootPath, id.module)).depends.ids) add(depId)
+      depIds.build()
+    }
+
+    def depProjs :Seq[Project] = ids.flatMap(id => project.pspace.projectFor(id))
+
+    def compileDeps = enproj.paths(":targets") ++ enproj.paths(":library-jars")
+    def runtimeDeps = Seq() // TODO: use runtime-deps from :subprojects?
+
+    // TODO: we should maybe filter out repeats?
+    def buildClasspath :Seq[Path] = compileDeps ++ depProjs.flatMap(_.depends match {
+      case endeps :EnsimeDepends => endeps.compileDeps
+      case _                     => Seq()
+    })
+    def execClasspath :Seq[Path] = runtimeDeps ++ buildClasspath
+  }
 
   @Plugin(tag="project-resolver")
   class EnsimeResolverPlugin extends ResolverPlugin {
     override def addComponents (project :Project) {
-      val configFile = project.root.path.resolve(DotEnsime)
+      // TODO: re-resolve (and flush/update cache) when config file changes
+      val rootPath = project.root.path
+      val configFile = rootPath.resolve(DotEnsime)
       if (Files.exists(configFile)) {
-        val config = parseConfig(configFile)
-        val scalaVers = config.get(":scala-version").flatMap(getString) || "2.12.0"
+        val encfg = configCache.get(configFile)
+        val enproj = encfg.projects.find(_.id.module == project.root.module) || encfg.projects.head
 
-        // TODO: handle more than just main project
-        val projs = getList(config.get(":projects")).map(toMap)
-        val main = projs.head
+        // add a filer component with custom ignores
+        val igns = Ignorer.stockIgnores
+        // ignore the SBT project build directories
+        val projectDir = rootPath.resolve("project")
+        igns += Ignorer.ignorePath(projectDir.resolve("target"), rootPath)
+        igns += Ignorer.ignorePath(projectDir.resolve("project"), rootPath)
+        // ignore the target directories for *all* modules (since we all share the same root)
+        encfg.projects.foreach { proj =>
+          proj.paths(":targets") foreach { target => igns += Ignorer.ignorePath(target, rootPath) }
+        }
+        project.addComponent(classOf[Filer], new DirectoryFiler(project, igns))
 
-        def getStrings (key :String) = getList(main.get(key)).flatMap(getString)
-        def getPaths (key :String) = getStrings(key).map(dir => Paths.get(dir))
-        val sourceDirs = getPaths(":sources")
-        project.addComponent(classOf[Sources], new Sources(sourceDirs))
+        project.addComponent(classOf[Sources], new Sources(enproj.paths(":sources")))
+
+        val depends = new EnsimeDepends(project, enproj)
+        project.addComponent(classOf[Depends], depends)
 
         val java = new JavaComponent(project);
-        val targets = getPaths(":targets")
+        val targets = enproj.paths(":targets")
         java.javaMetaV() = new JavaMeta(
           targets,
           targets.head,
-          targets ++ getPaths(":library-jars"),
-          targets ++ getPaths(":library-jars")
+          depends.buildClasspath,
+          depends.execClasspath
         )
         project.addComponent(classOf[JavaComponent], java)
 
+        val scalaVers = encfg.string(":scala-version") || "2.12.0"
         project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
-          override def javacOpts = getStrings(":javac-options")
-          override def scalacOpts = getStrings(":scalac-options")
+          override def javacOpts = enproj.strings(":javac-options")
+          override def scalacOpts = enproj.strings(":scalac-options")
           override def scalacVers = scalaVers
           // override protected def willCompile () = copyResources()
         })
 
-        // if the project has no depends, add a simple depends with the JDK, better than nothing
-        if (!project.hasComponent(classOf[Depends])) {
-          project.addComponent(classOf[Depends], new Depends(project) {
-            import Project._
-            override def ids = Seq(PlatformId(JavaPlatform, JDK.thisJDK.majorVersion))
-          })
-        }
-
-        val name = config.get(":name").flatMap(getString) || "<missing name>";
         val oldMeta = project.metaV()
-        project.metaV() = oldMeta.copy(name = name)
+        project.metaV() = oldMeta.copy(name = enproj.name)
       }
     }
   }
@@ -167,10 +245,10 @@ object Ensime {
 
   private def serverCmd (project :Project) = {
     val rootPath = project.root.path
-    val config = parseConfig(rootPath.resolve(DotEnsime))
+    val config = configCache.get(rootPath.resolve(DotEnsime))
 
-    val compilerJars = getList(config.get(":scala-compiler-jars")).flatMap(getString)
-    val serverJars = getList(config.get(":ensime-server-jars")).flatMap(getString)
+    val compilerJars = config.strings(":scala-compiler-jars")
+    val serverJars = config.strings(":ensime-server-jars")
     val pathSep = System.getProperty("path.separator")
     val classpath = serverJars.mkString(pathSep) + pathSep + compilerJars.mkString(pathSep)
 
