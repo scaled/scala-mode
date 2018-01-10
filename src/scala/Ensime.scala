@@ -186,52 +186,53 @@ object Ensime {
 
   @Plugin(tag="project-resolver")
   class EnsimeResolverPlugin extends ResolverPlugin {
+    override def metaFiles (root :Project.Root) = Seq(root.path.resolve(DotEnsime))
+    override def readdComponents (project :Project) {
+      configCache.invalidate(project.root.path.resolve(DotEnsime))
+      addComponents(project)
+    }
     override def addComponents (project :Project) {
-      // TODO: re-resolve (and flush/update cache) when config file changes
       val rootPath = project.root.path
-      val configFile = rootPath.resolve(DotEnsime)
-      if (Files.exists(configFile)) {
-        val encfg = configCache.get(configFile)
-        val enproj = encfg.projects.find(_.id.module == project.root.module) || encfg.projects.head
+      val encfg = configCache.get(rootPath.resolve(DotEnsime))
+      val enproj = encfg.projects.find(_.id.module == project.root.module) || encfg.projects.head
 
-        // add a filer component with custom ignores
-        val igns = Ignorer.stockIgnores
-        // ignore the SBT project build directories
-        val projectDir = rootPath.resolve("project")
-        igns += Ignorer.ignorePath(projectDir.resolve("target"), rootPath)
-        igns += Ignorer.ignorePath(projectDir.resolve("project"), rootPath)
-        // ignore the target directories for *all* modules (since we all share the same root)
-        encfg.projects.foreach { proj =>
-          proj.paths(":targets") foreach { target => igns += Ignorer.ignorePath(target, rootPath) }
-        }
-        project.addComponent(classOf[Filer], new DirectoryFiler(project, igns))
-
-        project.addComponent(classOf[Sources], new Sources(enproj.paths(":sources")))
-
-        val depends = new EnsimeDepends(project, enproj)
-        project.addComponent(classOf[Depends], depends)
-
-        val java = new JavaComponent(project);
-        val targets = enproj.paths(":targets")
-        java.javaMetaV() = new JavaMeta(
-          targets,
-          targets.head,
-          depends.buildClasspath,
-          depends.execClasspath
-        )
-        project.addComponent(classOf[JavaComponent], java)
-
-        val scalaVers = encfg.string(":scala-version") || "2.12.0"
-        project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
-          override def javacOpts = enproj.strings(":javac-options")
-          override def scalacOpts = enproj.strings(":scalac-options")
-          override def scalacVers = scalaVers
-          // override protected def willCompile () = copyResources()
-        })
-
-        val oldMeta = project.metaV()
-        project.metaV() = oldMeta.copy(name = enproj.name)
+      // add a filer component with custom ignores
+      val igns = Ignorer.stockIgnores
+      // ignore the SBT project build directories
+      val projectDir = rootPath.resolve("project")
+      igns += Ignorer.ignorePath(projectDir.resolve("target"), rootPath)
+      igns += Ignorer.ignorePath(projectDir.resolve("project"), rootPath)
+      // ignore the target directories for *all* modules (since we all share the same root)
+      encfg.projects.foreach { proj =>
+        proj.paths(":targets") foreach { target => igns += Ignorer.ignorePath(target, rootPath) }
       }
+      project.addComponent(classOf[Filer], new DirectoryFiler(project, igns))
+
+      project.addComponent(classOf[Sources], new Sources(enproj.paths(":sources")))
+
+      val depends = new EnsimeDepends(project, enproj)
+      project.addComponent(classOf[Depends], depends)
+
+      val java = new JavaComponent(project);
+      val targets = enproj.paths(":targets")
+      java.javaMetaV() = new JavaMeta(
+        targets,
+        targets.head,
+        depends.buildClasspath,
+        depends.execClasspath
+      )
+      project.addComponent(classOf[JavaComponent], java)
+
+      val scalaVers = encfg.string(":scala-version") || "2.12.0"
+      project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
+        override def javacOpts = enproj.strings(":javac-options")
+        override def scalacOpts = enproj.strings(":scalac-options")
+        override def scalacVers = scalaVers
+        // override protected def willCompile () = copyResources()
+      })
+
+      val oldMeta = project.metaV()
+      project.metaV() = oldMeta.copy(name = enproj.name)
     }
   }
 

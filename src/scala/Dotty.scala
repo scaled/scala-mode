@@ -64,16 +64,17 @@ object Dotty {
 
   @Plugin(tag="project-resolver")
   class DottyResolverPlugin extends ResolverPlugin {
+    override def metaFiles (root :Project.Root) = Seq(root.path.resolve(ProjectFile))
     override def addComponents (project :Project) {
       val rootPath = project.root.path
       val configFile = rootPath.resolve(ProjectFile)
-      if (Files.exists(configFile)) {
-        val modules = parseDottyConfig(configFile)
-        val main = modules(0) // TODO: handle test project also
+      val modules = parseDottyConfig(configFile)
+      val main = modules(0) // TODO: handle test project also
 
-        val sourceDirs = main.sourceDirectories.map(rootPath.resolve(_)).toSeq
-        project.addComponent(classOf[Sources], new Sources(sourceDirs))
-      }
+      val sourceDirs = main.sourceDirectories.map(rootPath.resolve(_)).toSeq
+      project.addComponent(classOf[Sources], new Sources(sourceDirs))
+
+      // TODO: could get most of a JavaComponent out of our Dotty IDE file...
     }
   }
 }
