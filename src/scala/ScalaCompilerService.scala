@@ -11,18 +11,24 @@ import scaled._
 object ScalaCompilerService {
 
   /** Encapsulates a compilation request.
+    * @param id a unique identifier used to distinguish the calling project's series of compilation
+    * requests from those of other projects.
     * @param buffer the buffer into which compiler output will be sent.
-    * @param incremental whether to do an incremental or full compile.
-    * @param sources the source files to be compiled.
     * @param classpath the classpath to use during compilation.
-    * @param output the directory into which to write the compiled classfiles.
+    * @param target a directory into which temporary build files can be written.
+    * @param output the directory into which to write the compiled classfiles, usually
+    * `${target}/classes}`.
     * @param jcopts options to pass to javac.
     * @param scopts options to pass to scalac.
     * @param scvers the version of scalac to use (i.e. `2.11.7`).
+    * @param incremental whether to do an incremental or full compile.
+    * @param sources source files or directories (which will be recursively searched for source
+    * files) to be compiled.
     */
-  case class Request (buffer :Buffer, incremental :Boolean, sources :SeqV[Path],
-                      classpath :SeqV[Path], output :Path,
-                      jcopts :SeqV[String], scopts :SeqV[String], scvers :String)
+  case class Request (id :String, buffer :Buffer,
+                      classpath :SeqV[Path], target :Path, output :Path,
+                      jcopts :SeqV[String], scopts :SeqV[String], scvers :String,
+                      incremental :Boolean, sources :SeqV[Path])
 }
 
 @Service(name="scala-compiler", impl="ScalaCompilerManager", desc="""

@@ -213,10 +213,18 @@ object Ensime {
       val depends = new EnsimeDepends(project, enproj)
       project.addComponent(classOf[Depends], depends)
 
+      // a hack to find the 'target' directory, given an SBT classes directory like
+      // target/scala-2.12/classes
+      def findTarget (path :Path, orig :Path) :Path =
+        if (path == null) orig
+        else if (path.getFileName.toString == "target") path
+        else findTarget(path.getParent, orig)
+
       val java = new JavaComponent(project);
       val targets = enproj.paths(":targets")
       java.javaMetaV() = new JavaMeta(
         targets,
+        findTarget(targets.head, targets.head),
         targets.head,
         depends.buildClasspath,
         depends.execClasspath

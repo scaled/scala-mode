@@ -9,8 +9,8 @@ import scaled._
 import scaled.util.{BufferBuilder, Chars}
 
 object ScalaCompiler {
-  // matches: "/foo/bar/baz.scala:NN: some error message"
-  val pathM = Matcher.regexp("""^(\S+):(\d+): (?:(warning|error): )?(.*)""")
+  // matches: "[Severity] /foo/bar/baz.scala:NN: message"
+  val pathM = Matcher.regexp("""^\[(\S+)\] (\S+):(\d+): (.*)""")
   // matches: "     ^"
   val caretM = Matcher.regexp("""^(\s*)\^""")
 
@@ -46,24 +46,26 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
   }
 
   protected def compile (buffer :Buffer, file :Option[Path]) =
-    compile(buffer, file, proj.sources.dirs, java.buildClasspath, java.outputDir)
+    compile(buffer, file, proj.sources.dirs, java.buildClasspath, java.targetDir, java.outputDir)
 
   /** A hook called just before we initiate compilation. */
   protected def willCompile () {}
 
   protected def compile (buffer :Buffer, file :Option[Path], sources :SeqV[Path],
-                         classpath :SeqV[Path], output :Path) = {
+                         classpath :SeqV[Path], target :Path, output :Path) = {
     willCompile()
-    compileSvc.compile(ScalaCompilerService.Request(
-      buffer, file.isDefined, sources, classpath, output, javacOpts, scalacOpts, scalacVers))
+    compileSvc.compile(ScalaCompilerService.Request(project.root.toString, buffer,
+                                                    classpath, target, output,
+                                                    javacOpts, scalacOpts, scalacVers,
+                                                    file.isDefined, sources))
   }
 
   override def nextNote (buffer :Buffer, start :Loc) = buffer.findForward(pathM, start) match {
       case Loc.None => NoMoreNotes
       case ploc => try {
-        val file = pathM.group(1)
-        val line = pathM.group(2).toInt
-        val errWarn = pathM.group(3)
+        val severity = pathM.group(1).toLowerCase
+        val file = pathM.group(2)
+        val line = pathM.group(3).toInt
         val errPre = pathM.group(4).trim
         // now search for the caret that indicates the error column
         var pnext = ploc.nextStart
@@ -78,7 +80,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
           desc += buffer.line(pnext).asString
           pnext = pnext.nextStart
         }
-        NoteLoc(Note(Store(file), Loc(line-1, ecol), desc.build(), errWarn != "warning"), pnext)
+        NoteLoc(Note(Store(file), Loc(line-1, ecol), desc.build(), severity == "error"), pnext)
       } catch {
         case e :Exception => log.log("Error parsing error buffer", e) ; NoMoreNotes
       }
