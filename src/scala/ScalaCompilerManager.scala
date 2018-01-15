@@ -21,12 +21,13 @@ class ScalaCompilerManager (metaSvc :MetaService)
   private val scMain = "scaled.zinc.Main"
   private def pkgSvc = metaSvc.service[PackageService]
   private val scDir = pkgSvc.installDir(scSource)
-  private val scCP = pkgSvc.classpath(scSource).mkString(System.getProperty("path.separator"))
+  private def scCP = pkgSvc.classpath(scSource).mkString(System.getProperty("path.separator"))
 
   private val toClose = new Close.Bag()
   private val session = new Close.Box[Session](toClose) {
     override def create = new Session(metaSvc.exec.ui, new SubProcess.Config() {
-      override val command = Array("java", "-classpath", scCP, scMain)
+      override val command = Array("java", scMain)
+      override val environment = Map("CLASSPATH" -> scCP).asJMap
       // override def debug = true
     }) {
       override def interactionEnded () {
@@ -57,6 +58,20 @@ class ScalaCompilerManager (metaSvc :MetaService)
     while (!queue.isEmpty) queue.dequeue._2.fail(Errors.feedback("Compiler reset."))
   }
 
+  override def getStatus () :Future[String] = {
+    val result = Promise[String]()
+    session.get.interact("status", Map().asJMap, new Session.Interactor() {
+      def onMessage (name :String, data :JMap[String,String]) = name match {
+        case "status" => result.succeed(data.get("text")) ; true
+        case _ =>
+          val msg = s"Unexpected message from compiler [name=$name, data=$data]"
+          result.fail(new Exception(msg))
+          true
+      }
+    })
+    result
+  }
+
   private def processNext () {
     if (!queue.isEmpty) {
       val (req, res) = queue.dequeue
@@ -75,7 +90,7 @@ class ScalaCompilerManager (metaSvc :MetaService)
       put("scopts",    tabsep(req.scopts)).
       put("scvers",    req.scvers).
       put("classpath", tabsep(req.classpath)).
-      put("preclean",  (!req.incremental).toString).
+      put("increment", req.incremental.toString).
       put("sources",   tabsep(req.sources)).
       build()
     // TODO: other args like scala version, etc.

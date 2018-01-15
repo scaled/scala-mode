@@ -46,4 +46,7 @@ trait ScalaCompilerService {
     * if, heaven forbid, the compiler daemon becomes hosed for Odersky-knows-what reason.
     */
   def reset () :Unit
+
+  /** Requests the status of the compiler daemon. Returns a bunch of internal debugging info. */
+  def getStatus () :Future[String]
 }

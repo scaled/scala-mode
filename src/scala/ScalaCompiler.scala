@@ -6,11 +6,12 @@ package scaled.project
 
 import java.nio.file.{Files, Path}
 import scaled._
-import scaled.util.{BufferBuilder, Chars}
+import scaled.util.{BufferBuilder, Chars, Errors}
 
 object ScalaCompiler {
-  // matches: "[Severity] /foo/bar/baz.scala:NN: message"
-  val pathM = Matcher.regexp("""^\[(\S+)\] (\S+):(\d+): (.*)""")
+  // matches: "P [Severity] /foo/bar/baz.scala:NN: message" the "problem" format used by Zinc
+  // (plus the P prefix added by our runner)
+  val probM = Matcher.regexp("""^P \[(\S+)\] (\S+):(\d+): (.*)""")
   // matches: "     ^"
   val caretM = Matcher.regexp("""^(\s*)\^""")
 
@@ -45,6 +46,10 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
     bb.addKeyValue("scvers: ", scalacVers)
   }
 
+  override def getStatus (buffer :Buffer) = compileSvc.getStatus.
+    onSuccess(status => buffer.append(Line.fromTextNL(status))).
+    onFailure(ex => buffer.append(Errors.stackTraceToLines(ex)))
+
   protected def compile (buffer :Buffer, file :Option[Path]) =
     compile(buffer, file, proj.sources.dirs, java.buildClasspath, java.targetDir, java.outputDir)
 
@@ -60,13 +65,13 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
                                                     file.isDefined, sources))
   }
 
-  override def nextNote (buffer :Buffer, start :Loc) = buffer.findForward(pathM, start) match {
+  override def nextNote (buffer :Buffer, start :Loc) = buffer.findForward(probM, start) match {
       case Loc.None => NoMoreNotes
       case ploc => try {
-        val severity = pathM.group(1).toLowerCase
-        val file = pathM.group(2)
-        val line = pathM.group(3).toInt
-        val errPre = pathM.group(4).trim
+        val severity = probM.group(1).toLowerCase
+        val file = probM.group(2)
+        val line = probM.group(3).toInt
+        val errPre = probM.group(4).trim
         // now search for the caret that indicates the error column
         var pnext = ploc.nextStart
         val ecol = buffer.findForward(caretM, pnext) match {
