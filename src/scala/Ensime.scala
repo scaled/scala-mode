@@ -112,6 +112,7 @@ object EnsimeConfig {
     def project = string(":project") || "unknown"
     def config = string(":config") || "unknown"
     def module :String = s"$project:$config"
+    def testModule :Option[String] = if (config == "compile") Some(s"$project:test") else None
   }
   class EnsimeProject (data :SMap) extends DataConfig(data) {
     val id = new EnsimeId(data.get(":id").map(_.asMap) || Map())
@@ -230,6 +231,7 @@ object Ensime {
         depends.execClasspath
       )
       project.addComponent(classOf[JavaComponent], java)
+      java.addTesters()
 
       val scalaVers = encfg.string(":scala-version") || "2.12.0"
       project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
@@ -240,7 +242,8 @@ object Ensime {
       })
 
       val oldMeta = project.metaV()
-      project.metaV() = oldMeta.copy(name = enproj.name)
+      val testRoot = enproj.id.testModule.map(Project.Root(rootPath, _))
+      project.metaV() = oldMeta.copy(name = enproj.name, testRoot=testRoot)
     }
   }
 
