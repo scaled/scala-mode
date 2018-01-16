@@ -253,14 +253,14 @@ object Ensime {
   // TEMP: disabled until Ensime lang server is less "experimental"
   // @Plugin(tag="langserver")
   class EnsimeLangPlugin extends LangPlugin {
-    def suffs (root :Path) = Set("scala")
-    def canActivate (root :Path) = Files.exists(root.resolve(DotEnsime))
-    def createClient (proj :Project) = Future.success(new EnsimeLangClient(proj, serverCmd(proj)))
+    def suffs (root :Project.Root) = Set("scala")
+    def canActivate (root :Project.Root) = Files.exists(root.path.resolve(DotEnsime))
+    def createClient (metaSvc :MetaService, root :Project.Root) =
+      Future.success(new EnsimeLangClient(metaSvc, root.path))
   }
 
-  private def serverCmd (project :Project) = {
-    val rootPath = project.root.path
-    val config = configCache.get(rootPath.resolve(DotEnsime))
+  def serverCmd (root :Path) = {
+    val config = configCache.get(root.resolve(DotEnsime))
 
     val compilerJars = config.strings(":scala-compiler-jars")
     val serverJars = config.strings(":ensime-server-jars")
@@ -269,13 +269,14 @@ object Ensime {
 
     Seq("java",
         "-classpath", classpath,
-        "-Dlsp.workspace=" + rootPath,
+        "-Dlsp.workspace=" + root,
         // "-Dlsp.logLevel=" + logLevel,
         "org.ensime.server.Server", "--lsp")
   }
 }
 
-class EnsimeLangClient (p :Project, cmd :Seq[String]) extends LangClient(p, cmd) {
+class EnsimeLangClient (msvc :MetaService, root :Path)
+    extends LangClient(msvc, root, Ensime.serverCmd(root)) {
 
   override def name = "Ensime"
 }

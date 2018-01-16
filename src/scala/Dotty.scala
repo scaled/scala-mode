@@ -45,17 +45,18 @@ object Dotty {
 
   @Plugin(tag="langserver")
   class DottyLangPlugin extends LangPlugin {
-    def suffs (root :Path) = Set("scala")
-    def canActivate (root :Path) = Files.exists(root.resolve(ProjectFile))
-    def createClient (proj :Project) = Future.success(new DottyLangClient(proj, serverCmd(proj)))
+    def suffs (root :Project.Root) = Set("scala")
+    def canActivate (root :Project.Root) = Files.exists(root.path.resolve(ProjectFile))
+    def createClient (metaSvc :MetaService, root :Project.Root) =
+      Future.success(new DottyLangClient(metaSvc, root))
   }
 
-  private def serverCmd (project :Project) = {
+  def serverCmd (metaSvc :MetaService, root :Project.Root) = {
     // TEMP: we hardcode the version of the dotty compiler for now and run it by getting the
     // classpath for this scala-project package; eventually we'll use our "download stuff from
     // Maven on demand" support to download the appropriate artifact based on what's in the
     // dotty-ide.json file and run that version of the compiler
-    val pkgSvc = project.metaSvc.service[PackageService]
+    val pkgSvc = metaSvc.service[PackageService]
     val pkgSource = "git:https://github.com/scaled/scala-mode.git"
     val pkgCP = pkgSvc.classpath(pkgSource).mkString(System.getProperty("path.separator"))
     val langMain = "dotty.tools.languageserver.Main"
@@ -79,7 +80,8 @@ object Dotty {
   }
 }
 
-class DottyLangClient (p :Project, cmd :Seq[String]) extends LangClient(p, cmd) {
+class DottyLangClient (msvc :MetaService, root :Project.Root)
+    extends LangClient(msvc, root.path, Dotty.serverCmd(msvc, root)) {
 
   override def name = "Dotty"
 
