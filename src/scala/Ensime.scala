@@ -236,7 +236,10 @@ object Ensime {
       val scalaVers = encfg.string(":scala-version") || "2.12.0"
       project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
         override def javacOpts = enproj.strings(":javac-options")
-        override def scalacOpts = enproj.strings(":scalac-options")
+        override def scalacOpts = enproj.strings(":scalac-options").
+          // filter out this arg that ensime-sbt helpfully adds;
+          // it causes scalac to freak out about macros not being expanded
+          filter(_ != "-Ymacro-expand:discard")
         override def scalacVers = scalaVers
         // override protected def willCompile () = copyResources()
       })
