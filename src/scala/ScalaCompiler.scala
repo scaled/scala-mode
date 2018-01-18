@@ -16,7 +16,7 @@ object ScalaCompiler {
   val caretM = Matcher.regexp("""^(\s*)\^""")
 
   /** The default version of scalac used if none is specified. */
-  val DefaultScalacVersion = "2.12.0"
+  val DefaultScalacVersion = "2.12.4"
 }
 
 abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compiler(proj) {

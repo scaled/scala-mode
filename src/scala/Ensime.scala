@@ -233,7 +233,7 @@ object Ensime {
       project.addComponent(classOf[JavaComponent], java)
       java.addTesters()
 
-      val scalaVers = encfg.string(":scala-version") || "2.12.0"
+      val scalaVers = encfg.string(":scala-version") || "2.12.4"
       project.addComponent(classOf[Compiler], new ScalaCompiler(project, java) {
         override def javacOpts = enproj.strings(":javac-options")
         override def scalacOpts = enproj.strings(":scalac-options").
