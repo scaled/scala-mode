@@ -7,6 +7,7 @@ package scaled.project
 import java.util.{Map => JMap}
 import scala.collection.mutable.Queue
 import scaled._
+import scaled.pacman.JDK
 import scaled.prococol.{Session, SubProcess}
 import scaled.util.{Close, Chars, Errors}
 
@@ -26,7 +27,8 @@ class ScalaCompilerManager (metaSvc :MetaService)
   private val toClose = new Close.Bag()
   private val session = new Close.Box[Session](toClose) {
     override def create = new Session(metaSvc.exec.ui, new SubProcess.Config() {
-      override val command = Array("java", scMain)
+      def binJava = JDK.thisJDK.home.resolve("bin").resolve("java").toString
+      override val command = Array(binJava, scMain)
       override val environment = Map("CLASSPATH" -> scCP).asJMap
       // override def debug = true
     }) {
