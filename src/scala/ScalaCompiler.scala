@@ -12,6 +12,9 @@ object ScalaCompiler {
   // matches: "P [Severity] /foo/bar/baz.scala:NN: message" the "problem" format used by Zinc
   // (plus the P prefix added by our runner)
   val probM = Matcher.regexp("""^P \[(\S+)\] (\S+):(\d+): (.*)""")
+  // matches "/foo/bar/baz.java:NN: severity: message" which is what Zinc passes through if javac
+  // reports an error
+  val jprobM = Matcher.regexp("""(\S+):(\d+): (\S+): (.*)""")
   // matches: "     ^"
   val caretM = Matcher.regexp("""^(\s*)\^""")
 
@@ -65,29 +68,35 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
                                                     file.isDefined, sources))
   }
 
-  override def nextNote (buffer :Buffer, start :Loc) = buffer.findForward(probM, start) match {
-      case Loc.None => NoMoreNotes
-      case ploc => try {
-        val severity = probM.group(1).toLowerCase
-        val file = probM.group(2)
-        val line = probM.group(3).toInt
-        val errPre = probM.group(4).trim
-        // now search for the caret that indicates the error column
-        var pnext = ploc.nextStart
-        val ecol = buffer.findForward(caretM, pnext) match {
-          case Loc.None => 0
-          case cloc     => buffer.line(cloc).indexOf('^')
-        }
-        // every line after the path with leading whitespace is part of the message
-        val desc = Seq.builder[String]()
-        desc += errPre
-        while (pnext < buffer.end && buffer.line(pnext).indexOf(Chars.isWhitespace) == 0) {
-          desc += buffer.line(pnext).asString
-          pnext = pnext.nextStart
-        }
-        NoteLoc(Note(Store(file), Loc(line-1, ecol), desc.build(), severity == "error"), pnext)
-      } catch {
-        case e :Exception => log.log("Error parsing error buffer", e) ; NoMoreNotes
+  override def nextNote (buffer :Buffer, start :Loc) = {
+    def extractNote (ploc :Loc, file :String, line :Int, sev :String, errPre :String) = try {
+      // now search for the caret that indicates the error column
+      var pnext = ploc.nextStart
+      val ecol = buffer.findForward(caretM, pnext) match {
+        case Loc.None => 0
+        case cloc     => buffer.line(cloc).indexOf('^')
       }
+      // every line after the path with leading whitespace is part of the message
+      val desc = Seq.builder[String]()
+      desc += errPre
+      while (pnext < buffer.end && buffer.line(pnext).indexOf(Chars.isWhitespace) == 0) {
+        desc += buffer.line(pnext).asString
+        pnext = pnext.nextStart
+      }
+      NoteLoc(Note(Store(file), Loc(line-1, ecol), desc.build(), sev.toLowerCase == "error"), pnext)
+    } catch {
+      case e :Exception => log.log("Error parsing error buffer", e) ; NoMoreNotes
     }
+    buffer.findForward(probM, start) match {
+      case Loc.None => buffer.findForward(jprobM, start) match {
+        case Loc.None => NoMoreNotes
+        case ploc =>
+          val (file, line, sev) = (jprobM.group(1), jprobM.group(2).toInt, jprobM.group(3))
+          extractNote(ploc, file, line, sev, probM.group(4).trim)
+      }
+      case ploc =>
+        val (sev, file, line) = (probM.group(1), probM.group(2), probM.group(3).toInt)
+        extractNote(ploc, file, line, sev, probM.group(4).trim)
+    }
+  }
 }
