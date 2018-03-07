@@ -92,7 +92,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
         case Loc.None => NoMoreNotes
         case ploc =>
           val (file, line, sev) = (jprobM.group(1), jprobM.group(2).toInt, jprobM.group(3))
-          extractNote(ploc, file, line, sev, probM.group(4).trim)
+          extractNote(ploc, file, line, sev, jprobM.group(4).trim)
       }
       case ploc =>
         val (sev, file, line) = (probM.group(1), probM.group(2), probM.group(3).toInt)
