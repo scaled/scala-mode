@@ -47,8 +47,8 @@ object Dotty {
   class DottyLangPlugin extends LangPlugin {
     def suffs (root :Project.Root) = Set("scala")
     def canActivate (root :Project.Root) = Files.exists(root.path.resolve(ProjectFile))
-    def createClient (metaSvc :MetaService, root :Project.Root) =
-      Future.success(new DottyLangClient(metaSvc, root))
+    def createClient (proj :Project) = Future.success(
+      new DottyLangClient(proj.metaSvc, proj.root))
   }
 
   def serverCmd (metaSvc :MetaService, root :Project.Root) = {

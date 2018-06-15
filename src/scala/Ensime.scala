@@ -209,7 +209,9 @@ object Ensime {
       }
       project.addComponent(classOf[Filer], new DirectoryFiler(project, igns))
 
-      project.addComponent(classOf[Sources], new Sources(enproj.paths(":sources")))
+      Option(enproj.paths(":sources")).foreach { srcs =>
+        project.addComponent(classOf[Sources], new Sources(srcs))
+      }
 
       val depends = new EnsimeDepends(project, enproj)
       project.addComponent(classOf[Depends], depends)
@@ -255,8 +257,8 @@ object Ensime {
   class EnsimeLangPlugin extends LangPlugin {
     def suffs (root :Project.Root) = Set("scala")
     def canActivate (root :Project.Root) = Files.exists(root.path.resolve(DotEnsime))
-    def createClient (metaSvc :MetaService, root :Project.Root) =
-      Future.success(new EnsimeLangClient(metaSvc, root.path))
+    def createClient (proj :Project) = Future.success(
+      new EnsimeLangClient(proj.metaSvc, proj.root.path))
   }
 
   def serverCmd (root :Path) = {
