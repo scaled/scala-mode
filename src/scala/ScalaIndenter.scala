@@ -6,42 +6,71 @@ package scaled.code
 
 import scaled._
 
-class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
+object ScalaIndenter {
   import Indenter._
+  import BlockIndenter._
 
-  override def computeIndent (state :State, base :Int, info :Info) = {
+  def create (cfg :Config) :Indenter = new BlockIndenter(cfg, Seq(
     // bump extends/with in two indentation levels
-    if (info.startsWith(extendsOrWithM)) base + 2*indentWidth
-    // if we're in a faux case block...
-    else if (state.isInstanceOf[CaseS]) {
+    adjustIndentWhenMatchStart(Matcher.regexp("""(extends|with)\b"""), 2),
+    new CaseRule(),
+    new SingleLineBlockRule(),
+    new BlockCommentRule(),
+    new LambdaBlockRule(" =>"),
+    new AlignUnderDotRule()
+  ))
+
+  class CaseRule extends Rule {
+    override def adjustIndent (state :State, info :Info, indentWidth :Int, base :Int) = {
+      // if we're in a faux case block...
+      if (!state.isInstanceOf[CaseS]) base
       // ignore the block indent for subsequent case statements
-      if (info.startsWith(caseArrowM)) base - indentWidth
+      else if (info.startsWith(caseArrowM)) base - indentWidth
       // ignore the block indent for the final close bracket
       else if (info.firstChar == '}') base - 2*indentWidth
       // otherwise stick to business as usual...
-      else super.computeIndent(state, base, info)
+      else base
     }
-    else super.computeIndent(state, base, info)
+
+    override def adjustStart (line :LineV, first :Int, last :Int, start :State) :State = {
+      // if this line opens a match case which does not contain any code after the arrow, create a
+      // faux block to indent the case body
+      if (line.matches(caseArrowM, first) && line.charAt(last) == '>') {
+        // if we're currently in the case block for the preceding case, pop it first
+        new CaseS(start.popIf(_.isInstanceOf[CaseS]))
+      }
+      // otherwise leave the start as is
+      else start
+    }
+
+    private val caseArrowM = Matcher.regexp("""case\s.*=>""")
   }
 
-  override protected def createStater = new BlockStater() {
-    private[this] var opensSLB = false
-    private[this] var slbExprOpen = -1
-    private[this] var slbExprClose = -1
-    private[this] var slbExpectsPair = false
+  class CaseS (next :State) extends State(next) {
+    override def show = "CaseS"
+  }
+
+  class SingleLineBlockRule extends ContinuedStatementRule(".+-=") {
+    private var opensSLB = false
+    private var slbExprOpen = -1
+    private var slbExprClose = -1
+    private var slbExpectsPair = false
+    private val singleLineBlockM = Matcher.regexp("""(if|else if|else|while)\b""")
 
     override def adjustStart (line :LineV, first :Int, last :Int, start :State) :State = {
       // reset our SLB tracking state
       slbExprOpen = -1 ; slbExprClose = -1 ; slbExpectsPair = false
       // if we're looking at an SLB, push a state for it
       opensSLB = line.matches(singleLineBlockM, first)
-      if (opensSLB) {
+      if (!opensSLB) start
+      else {
         val token = singleLineBlockM.group(1)
         val nstate = new SingleBlockS(token, first, start)
         // if this SLB has no associated expression (else or a do); set the expression open/close
         // column to the end of the token so that the "pop on later block" code works properly
         if (nstate.lacksExpr) {
-          slbExprOpen = first+token.length ; slbExprClose = slbExprOpen
+          slbExprOpen = first+token.length
+          slbExprClose = slbExprOpen
         }
         // if this is an 'if' or 'else if', or a 'do', we want to know whether or not to expect to
         // see a subsequent 'else' or 'while' so that we can determine if this statement should
@@ -53,73 +82,23 @@ class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
         slbExpectsPair = nstate.expectsPair(line)
         nstate
       }
-      // if this line opens a block or doc comment, push a state for it
-      else if (countComments(line, first) > 0) {
-        // if this is a doc comment which is followed by non-whitespace, then indent to match the
-        // second star rather than the first
-        val col = if (line.matches(firstLineDocM, first)) 2 else 1
-        new CommentS(col, start)
-      }
-      // if this line opens a match case which does not contain any code after the arrow, create a
-      // faux block to indent the case body
-      else if (line.matches(caseArrowM, first) && line.charAt(last) == '>') {
-        // if we're currently in the case block for the preceding case, pop it first
-        new CaseS(start.popIf(_.isInstanceOf[CaseS]))
-      }
-      // otherwise leave the start as is
-      else start
     }
 
     override def adjustEnd (line :LineV, first :Int, last :Int, start :State, cur :State) :State = {
-      var end = cur
-      // if this line closes a doc/block comment, pop our comment state from the stack
-      if (countComments(line, 0) < 0) end = end.popIf(_.isInstanceOf[CommentS])
-
       // if the last non-ws-non-comment char is beyond our SLB condition expression then pop the
       // SLB state because the "body" was on the same line (this is normally done when we see any
       // sort of bracket after our SLB expr, but it's possible that the SLB body contains no
       // brackets, so we catch that case here)
       if (opensSLB && last > slbExprClose) {
-        end = end.popIf(_.isInstanceOf[SingleBlockS])
         opensSLB = false
-      }
-
-      // if the top of the stack is a BlockS but the end of the line is => then we're in a lambda
-      // and need to adjust the BlockS to let it know that it actually should trigger indent
-      if (end.isInstanceOf[BlockS]) {
-        val arrowStart = last+1-lambdaArrowM.show.length
-        if (arrowStart >= 0 && line.matches(lambdaArrowM, arrowStart)) {
-          end = end.asInstanceOf[BlockS].makeEOL
-        }
-      }
-
-      // if this line is blank or contains only comments; do not mess with our "is continued or
-      // not" state; wait until we get to a line with something actually on it
-      if (line.synIndexOf(s => !s.isComment, first) == -1) end
-      else {
-        // determine (heuristically) whether this line appears to be a complete statement
-        val isContinued = (last >= 0) && contChars.indexOf(line.charAt(last)) >= 0
-        val isComplete = !(isContinued || slbExpectsPair ||
-                           end.isInstanceOf[BlockS] || end.isInstanceOf[ExprS])
-
-        // if we appear to be a complete statement, pop any continued statement state off the stack
-        if (isComplete) {
-          end = end.popIf(_.isInstanceOf[ContinuedS])
-          // if we didn't just open an SLB and we're a complete statement, then pop any SLB because
-          // this was the single line body of our single line block
-          if (!opensSLB) end.popIf(_.isInstanceOf[SingleBlockS])
-          else end
-        }
-        // if we're not already a continued statement, we may need to start being so
-        else if (isContinued) new ContinuedS(end.popIf(_.isInstanceOf[ContinuedS]))
-        // otherwise stick with what we have
-        else end
-      }
+        cur.popIf(_.isInstanceOf[SingleBlockS])
+      } else cur
     }
 
-    override def openBlock (line :LineV, open :Char, close :Char, col :Int, state :State) :State = {
-      var top = state
-      if (opensSLB) {
+    override def willOpenBlock (line :LineV, open :Char, close :Char, col :Int, state :State) :State = {
+      if (!opensSLB) state
+      else {
+        var top = state
         // if we're processing an SLB and this is the first block on the line, note its info
         if (slbExprOpen == -1) slbExprOpen = col
         // if we're opening another block after our SLB token's expression block, then pop the SLB
@@ -130,32 +109,30 @@ class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
           top = top.popIf(_.isInstanceOf[SingleBlockS])
           opensSLB = false
         }
+        top
       }
-      super.openBlock(line, open, close, col, top)
     }
-    override def closeBlock (line :LineV, close :Char, col :Int, state :State) :State = {
+
+    override def willCloseBlock (line :LineV, close :Char, col :Int, state :State) = {
       // if we're closing the bracketed expr that goes along with our SLB, note the close column
       if (opensSLB) state match {
         case es :ExprS if (es.col == slbExprOpen) => slbExprClose = col
         case _ => // ignore
       }
-      super.closeBlock(line, close, col, state)
     }
 
-    protected def contChars = ".+-="
+    override protected def isComplete (isContinued :Boolean, cur :State) =
+      !slbExpectsPair && super.isComplete(isContinued, cur)
+
+    override protected def adjustCompleteEnd (line :LineV, end :State) :State = {
+      val ends = super.adjustCompleteEnd(line, end)
+      // if we didn't just open an SLB and we're a complete statement, then pop any SLB
+      // because this was the single line body of our single line block
+      if (opensSLB) ends else ends.popIf(_.isInstanceOf[SingleBlockS])
+    }
   }
 
-  protected class CommentS (inset :Int, next :State) extends State(next) {
-    override def indent (config :Config, top :Boolean) = inset + next.indent(config)
-    override def show = s"CommentS($inset)"
-  }
-  protected class ContinuedS (next :State) extends State(next) {
-    override def show = "ContinuedS"
-  }
-  protected class CaseS (next :State) extends State(next) {
-    override def show = "CaseS"
-  }
-  protected class SingleBlockS (token :String, col :Int, next :State) extends State(next) {
+  class SingleBlockS (token :String, col :Int, next :State) extends State(next) {
     def expectsPair (line :LineV) = token match {
       // if our if or else if is followed by an else on the same line, we're already paired
       case "if" | "else if" => line.lastIndexOf(elseM) match {
@@ -172,13 +149,6 @@ class ScalaIndenter (cfg :Config) extends Indenter.ByBlock(cfg) {
       (if (top) indentWidth(config) else 0) + next.indent(config)
     override def show = s"SingleBlockS($token, $col)"
   }
-
-  private val caseArrowM = Matcher.regexp("""case\s.*=>""")
-  private val lambdaArrowM = Matcher.exact(" =>")
-  private val extendsOrWithM = Matcher.regexp("""(extends|with)\b""")
-  private val singleLineBlockM = Matcher.regexp("""(if|else if|else|while)\b""")
-
-  private val firstLineDocM = Matcher.regexp("""/\*\*\s*\S+""")
 
   private val elseIfM = Matcher.regexp("""\belse\s+if\b""")
   private val elseM = Matcher.regexp("""\belse\b""")

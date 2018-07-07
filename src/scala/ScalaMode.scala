@@ -34,7 +34,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
       }
     }
 
-  override protected def createIndenter = new ScalaIndenter(config)
+  override protected def createIndenter = ScalaIndenter.create(config)
 
   override protected def canAutoFill (p :Loc) :Boolean =
     super.canAutoFill(p) || (buffer.syntaxNear(p) == HD)
