@@ -223,7 +223,7 @@ object Ensime {
         else if (path.getFileName.toString == "target") path
         else findTarget(path.getParent, orig)
 
-      val java = new JavaComponent(project);
+      val java = new JavaMetaComponent(project);
       val targets = enproj.paths(":targets")
       java.javaMetaV() = new JavaMeta(
         targets,
