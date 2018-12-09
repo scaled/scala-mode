@@ -11,5 +11,5 @@ license: New BSD
  depend: git:https://github.com/scaled/prococol.git
  depend: mvn:org.scala-lang:scala-compiler:2.12.4
  depend: mvn:io.spray:spray-json_2.12:1.3.4
- depend: mvn:ch.epfl.lamp:dotty-language-server_0.5:0.5.0-RC1
+ depend: mvn:ch.epfl.lamp:dotty-language-server_0.11:0.11.0-RC1
  module: test
