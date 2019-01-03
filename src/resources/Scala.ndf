@@ -64,7 +64,7 @@ repository:
       (([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`|[^\w\[\(\:\_\s]+)
    caps: 1=keyword.declaration.scala 2=entity.name.function.declaration
   single:
-   pattern: (case)?\b(class|trait|object)\s+([^\s\{\(\[]+)
+   pattern: (case)?\b(class|trait|object|enum)\s+([^\s\{\(\[]+)
    caps: 1=keyword.declaration.scala 2=keyword.declaration.scala 3=entity.name.class.declaration
   single:
    pattern: \b(type)\s+(([a-zA-Z$_][a-zA-Z0-9$_]*(_[^a-zA-Z0-9\s]+)?)|`.*`)
