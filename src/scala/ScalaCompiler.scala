@@ -36,6 +36,11 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
   /** The version of the Scala compiler to use. */
   def scalacVers :String = DefaultScalacVersion
 
+  /** A directory into which temporary build files can be written. */
+  def targetDir :Path
+  /** The directory into which class files should be written. */
+  def outputDir :Path
+
   val log = proj.metaSvc.log
   val compileSvc = proj.metaSvc.service[ScalaCompilerService]
 
@@ -54,7 +59,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
     onFailure(ex => buffer.append(Errors.stackTraceToLines(ex)))
 
   protected def compile (buffer :Buffer, file :Option[Path]) =
-    compile(buffer, file, proj.sources.dirs, java.buildClasspath, java.targetDir, java.outputDir)
+    compile(buffer, file, proj.sources.dirs, java.buildClasspath, targetDir, outputDir)
 
   /** A hook called just before we initiate compilation. */
   protected def willCompile () {}
