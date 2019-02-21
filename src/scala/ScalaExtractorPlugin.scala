@@ -31,7 +31,7 @@ class ScalaExtractorPlugin extends ExtractorPlugin {
       // if this project doesn't have scala-library on its classpath, we have to put it there; the
       // only project that's likely not to have scala-library on its classpath is scala-library
       // itself, but that's one we definitely want to index
-      val cp = jp.buildClasspath
+      val cp = jp.classes ++ jp.buildClasspath
       if (cp.exists(_.getFileName.toString.contains("scala-library"))) cp
       else (cp ++ findScalaLibrary)
     } getOrElse Seq()).toSeq.toScala
