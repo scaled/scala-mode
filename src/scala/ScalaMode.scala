@@ -59,7 +59,7 @@ class ScalaMode (env :Env) extends GrammarCodeMode(env) {
   }
 
   @Fn("Queries for a type (completed by the analyzer) and adds an import for it.")
-  def importType () {
+  def importType () :Unit = {
     val intel = Intel(buffer)
     window.mini.read("Type:", wordAt(view.point()), wspace.historyRing("lang-type"),
                      intel.symbolCompleter(Some(Kind.TYPE))).onSuccess(sym => {

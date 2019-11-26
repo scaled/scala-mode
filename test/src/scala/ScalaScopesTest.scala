@@ -12,7 +12,7 @@ import scaled.impl.BufferImpl
 
 class ScalaScopesTest {
 
-  // @Test def dumpGrammar () {
+  // @Test def dumpGrammar () :Unit = {
   //   val plugin = new ScalaGrammarPlugin()
   //   plugin.grammar.print(System.out)
   // }
@@ -30,7 +30,7 @@ class ScalaScopesTest {
     /* 7*/ "class Test extends Baffle {",
     /* 8*/ "  /** A Scaladoc style comment!",
     /* 9*/ "    * @param foo for fooing. */",
-    /*10*/ "  def foo (foo :Int) {}",
+    /*10*/ "  def foo (foo :Int) :Unit = {}",
     /*11*/ "",
     /*12*/ "  /**",
     /*13*/ "   * A method. How exciting. Let's {@link Test} to something.",
@@ -40,7 +40,7 @@ class ScalaScopesTest {
     /*17*/ "  def test (count :Int) :Int = count + 5",
     /*19*/ "}").mkString("\n")
 
-  @Test def testStylesLink () {
+  @Test def testStylesLink () :Unit = {
     val buffer = BufferImpl(new TextStore("Test.scala", "", testScalaCode))
     val plugin = new ScalaGrammarPlugin()
     val scoper = Grammar.testScoper(Seq(plugin.grammar("source.scala")), buffer,

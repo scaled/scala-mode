@@ -21,7 +21,7 @@ object ScalaCode {
    * - handle groups of imports separated by spaces
    * - handle inserting import into condensed imports (i.e. import foo.{Bar, Baz})
    */
-  def insertImport (buffer :Buffer, fqName :String) {
+  def insertImport (buffer :Buffer, fqName :String) :Unit = {
     val text = s"import $fqName"
 
     // first figure out where we're going to stop looking

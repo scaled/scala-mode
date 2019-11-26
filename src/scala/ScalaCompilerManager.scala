@@ -32,7 +32,7 @@ class ScalaCompilerManager (metaSvc :MetaService)
       override val environment = Map("CLASSPATH" -> scCP).asJMap
       // override def debug = true
     }) {
-      override def interactionEnded () {
+      override def interactionEnded () :Unit = {
         super.interactionEnded()
         processNext()
       }
@@ -42,8 +42,8 @@ class ScalaCompilerManager (metaSvc :MetaService)
 
   private val queue = Queue[(Request,Promise[Boolean])]()
 
-  override def didStartup () {} // nada
-  override def willShutdown () {
+  override def didStartup () :Unit = {} // nada
+  override def willShutdown () :Unit = {
     toClose.close()
   }
 
@@ -54,7 +54,7 @@ class ScalaCompilerManager (metaSvc :MetaService)
     result
   }
 
-  override def reset () {
+  override def reset () :Unit = {
     // TODO: if there's a request in progress, I don't think this will fail it
     session.close()
     while (!queue.isEmpty) queue.dequeue._2.fail(Errors.feedback("Compiler reset."))
@@ -74,14 +74,14 @@ class ScalaCompilerManager (metaSvc :MetaService)
     result
   }
 
-  private def processNext () {
+  private def processNext () :Unit = {
     if (!queue.isEmpty) {
       val (req, res) = queue.dequeue
       compile(req, res)
     }
   }
 
-  private def compile (req :Request, res :Promise[Boolean]) {
+  private def compile (req :Request, res :Promise[Boolean]) :Unit = {
     def tabsep (elems :SeqV[AnyRef]) = elems.mkString("\t")
     val args = Map.builder[String,String]().
       put("pkgdir",    scDir.toString).

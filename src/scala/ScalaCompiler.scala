@@ -48,7 +48,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
 
   override def describeEngine = "zinc + scalac"
 
-  override def describeOptions (bb :BufferBuilder) {
+  override def describeOptions (bb :BufferBuilder) :Unit = {
     bb.addKeyValue("javac: ", if (javacOpts.isEmpty) "<none>" else javacOpts.mkString(" "))
     bb.addKeyValue("scalac: ", if (scalacOpts.isEmpty) "<none>" else scalacOpts.mkString(" "))
     bb.addKeyValue("scvers: ", scalacVers)
@@ -62,7 +62,7 @@ abstract class ScalaCompiler (proj :Project, java :JavaComponent) extends Compil
     compile(buffer, file, proj.sources.dirs, java.buildClasspath, targetDir, outputDir)
 
   /** A hook called just before we initiate compilation. */
-  protected def willCompile () {}
+  protected def willCompile () :Unit = {}
 
   protected def compile (buffer :Buffer, file :Option[Path], sources :SeqV[Path],
                          classpath :SeqV[Path], target :Path, output :Path) = {

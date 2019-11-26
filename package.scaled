@@ -9,5 +9,5 @@ license: New BSD
  depend: git:https://github.com/scaled/java-mode.git
  depend: git:https://github.com/scaled/codex.git#scala
  depend: git:https://github.com/scaled/prococol.git
- depend: mvn:org.scala-lang:scala-compiler:2.12.8
+ depend: mvn:org.scala-lang:scala-compiler:2.13.1
  module: test
