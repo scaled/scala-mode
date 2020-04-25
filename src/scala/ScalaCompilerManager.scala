@@ -4,6 +4,7 @@
 
 package scaled.project
 
+import java.nio.file.Files
 import java.util.{Map => JMap}
 import scala.collection.mutable.Queue
 import scaled._
@@ -27,7 +28,15 @@ class ScalaCompilerManager (metaSvc :MetaService)
   private val toClose = new Close.Bag()
   private val session = new Close.Box[Session](toClose) {
     override def create = new Session(metaSvc.exec.ui, new SubProcess.Config() {
-      def binJava = JDK.thisJDK.home.resolve("bin").resolve("java").toString
+      def javaBin = (jdk :JDK) => jdk.home.resolve("bin").resolve("java")
+      def binJava = {
+        val thisJava = javaBin(JDK.thisJDK)
+        if (Files.exists(thisJava)) thisJava.toString
+        JDK.jdks.map(javaBin).find(java => Files.exists(java)) match {
+          case Some(java) => java.toString
+          case None => throw new Error("Unable to find 'java' binary in any JDK")
+        }
+      }
       override val command = Array(binJava, scMain)
       override val environment = Map("CLASSPATH" -> scCP).asJMap
       // override def debug = true
