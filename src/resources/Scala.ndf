@@ -125,7 +125,7 @@ repository:
    pattern: \b(return|throw)\b
   single:
    name: keyword.control.flow.scala
-   pattern: \b(else|if|do|while|for|yield|match|case)\b
+   pattern: \b(else|if|then|do|while|for|yield|match|case)\b
   single:
    name: keyword.control.exception.scala
    pattern: \b(catch|finally|try)\b
